@@ -79,7 +79,7 @@ export default defineTool({
       a: '只有經勞動部核定公告為第 84 條之 1 的工作者，並與雇主另行書面約定工時，才不受第 24 條等規定限制。一般職員即使公司說是「責任制」，加班仍應依法給付加班費。',
     },
   ],
-  related: ['salary-calculator', 'annual-leave', 'holidays-2026', 'labor-pension'],
+  related: ['salary-calculator', 'annual-leave', 'holidays-2026', 'labor-pension', 'salary-per-second'],
   priority: 88,
   updated: '2026-10-29',
 });

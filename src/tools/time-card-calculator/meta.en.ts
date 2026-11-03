@@ -97,7 +97,7 @@ export default defineTool({
       a: 'Your entries stay in your browser on this device so you can come back to them during the week. Nothing is uploaded.',
     },
   ],
-  related: ['exact-time', 'tip-calculator', 'sales-tax-calculator', 'fraction-calculator', 'gpa-calculator'],
+  related: ['exact-time', 'tip-calculator', 'sales-tax-calculator', 'fraction-calculator', 'gpa-calculator', 'salary-per-second'],
   priority: 72,
   updated: '2026-10-29',
 });

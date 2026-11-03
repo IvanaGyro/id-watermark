@@ -80,7 +80,7 @@ export default defineTool({
       a: '画面から離れるのがいちばんです。軽いストレッチや水分補給、トイレ、遠くを見て目を休めるなどがおすすめです。メッセージの返信や新しい作業は次の集中に響くので避けましょう。',
     },
   ],
-  related: ['countdown-timer', 'stopwatch', 'word-counter', 'water-intake'],
+  related: ['countdown-timer', 'stopwatch', 'word-counter', 'water-intake', 'salary-per-second'],
   priority: 55,
   updated: '2026-10-29',
 });

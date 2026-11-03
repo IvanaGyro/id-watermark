@@ -107,7 +107,7 @@ export default defineTool({
       a: '社会保険料は公表されている保険料額表と同じ方法で計算しているため、標準報酬月額が同じなら一致します。所得税は電算機計算の特例を使うため税額表と数十円ずれることがあり、住民税は前年も同じ収入と仮定した概算です。生命保険料控除・医療費控除などは考慮していません。',
     },
   ],
-  related: ['tsubo-converter', 'compound-interest', 'calculator', 'split-bill', 'wareki-converter'],
+  related: ['tsubo-converter', 'compound-interest', 'calculator', 'split-bill', 'wareki-converter', 'salary-per-second'],
   priority: 96,
   updated: '2026-10-29',
 });

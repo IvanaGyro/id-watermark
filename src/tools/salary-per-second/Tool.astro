@@ -1,0 +1,631 @@
+---
+import { i18nAttrs, pickStrings, type ToolProps } from '../../i18n/tool';
+import { LOCALE_INFO } from '../../i18n/locales';
+import { t } from '../../i18n/format';
+import Icon from '../../components/Icon.astro';
+import { CURRENCIES, DEFAULTS, REWARD_IDS, type PayPeriod } from './logic';
+import i18n from './i18n';
+
+type Props = ToolProps;
+const { locale = 'zh-TW' } = Astro.props;
+const s = pickStrings(i18n, locale);
+const defaults = DEFAULTS[locale];
+const currencyNames = new Intl.DisplayNames(LOCALE_INFO[locale].intl, { type: 'currency' });
+const periods: PayPeriod[] = ['month', 'year', 'hour'];
+---
+
+<div class="tool" data-tool="salary-per-second" data-defaults={JSON.stringify(defaults)} {...i18nAttrs(locale, s.client)}>
+  <section class="sp-stage" id="sp-stage" data-status="before">
+    <p class="sp-status" id="sp-status">{s.client.status.before}</p>
+    <div class="sp-amount" id="sp-amount" aria-label={s.amountAria}>
+      <span id="sp-int">0</span><span class="sp-frac" id="sp-frac"></span>
+    </div>
+    <div class="sp-bar" id="sp-bar" role="progressbar" aria-label={s.progressAria} aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+      <span class="sp-fill" id="sp-fill"></span>
+    </div>
+    <div class="sp-meta">
+      <span id="sp-percent">0%</span>
+      <span id="sp-countdown"></span>
+    </div>
+    <p class="sp-next" id="sp-next"></p>
+    <button class="btn small ghost sp-fs" type="button" id="sp-fullscreen">{s.client.fullscreen}</button>
+  </section>
+
+  <div class="stats">
+    <div class="stat"><span class="stat-value" id="sp-daily">–</span><span class="stat-label">{s.statDaily}</span></div>
+    <div class="stat"><span class="stat-value" id="sp-hourly">–</span><span class="stat-label">{s.statHourly}</span></div>
+    <div class="stat"><span class="stat-value" id="sp-minute">–</span><span class="stat-label">{s.statMinute}</span></div>
+    <div class="stat"><span class="stat-value" id="sp-second">–</span><span class="stat-label">{s.statSecond}</span></div>
+  </div>
+
+  <section class="sp-rewards">
+    <h3 class="sp-rewards-title">{s.rewardsTitle}</h3>
+    <ul class="sp-reward-list" id="sp-rewards">
+      {
+        REWARD_IDS.map((id) => (
+          <li data-id={id}>
+            <Icon name={s.rewardIcons[id]} size={22} class="sp-reward-icon" />
+            <span class="sp-reward-name">{t(s.client.amounts[id].other, { n: 0 })}</span>
+          </li>
+        ))
+      }
+    </ul>
+    <p class="hint" id="sp-rewards-hint">{s.rewardsHint}</p>
+  </section>
+
+  <details class="sp-settings" open>
+    <summary>{s.settings}</summary>
+    <div class="sp-settings-body">
+      <div class="seg" role="radiogroup" aria-label={s.periodAria}>
+        {
+          periods.map((p) => (
+            <label>
+              <input type="radio" name="sp-period" value={p} checked={p === defaults.period} />
+              <span>{s.periods[p]}</span>
+            </label>
+          ))
+        }
+      </div>
+      <div class="grid-2">
+        <div class="field">
+          <label for="sp-pay" id="sp-pay-label" data-labels={JSON.stringify(s.payLabel)}>{s.payLabel[defaults.period]}</label>
+          <input id="sp-pay" type="number" inputmode="decimal" min="0" step="any" value={defaults.pay} />
+        </div>
+        <div class="field">
+          <label for="sp-currency">{s.currency}</label>
+          <select id="sp-currency">
+            {
+              CURRENCIES.map((c) => (
+                <option value={c} selected={c === defaults.currency}>
+                  {c} · {currencyNames.of(c)}
+                </option>
+              ))
+            }
+          </select>
+        </div>
+        <div class="field" id="sp-days-field">
+          <label for="sp-days">{s.workDays}</label>
+          <input id="sp-days" type="number" inputmode="decimal" min="1" max="31" step="any" value={defaults.workDays} />
+        </div>
+      </div>
+      <div class="grid-2">
+        <div class="field">
+          <label for="sp-start">{s.start}</label>
+          <input id="sp-start" type="time" value={defaults.start} />
+        </div>
+        <div class="field">
+          <label for="sp-end">{s.end}</label>
+          <input id="sp-end" type="time" value={defaults.end} />
+        </div>
+      </div>
+      <label class="check"><input type="checkbox" id="sp-break-on" checked={defaults.breakOn} /> {s.breakOn}</label>
+      <div class="grid-2" id="sp-break-fields">
+        <div class="field">
+          <label for="sp-break-start">{s.breakStart}</label>
+          <input id="sp-break-start" type="time" value={defaults.breakStart} />
+        </div>
+        <div class="field">
+          <label for="sp-break-end">{s.breakEnd}</label>
+          <input id="sp-break-end" type="time" value={defaults.breakEnd} />
+        </div>
+      </div>
+      <p class="sp-hours" id="sp-hours"></p>
+      <p class="hint">{s.saveHint}</p>
+    </div>
+  </details>
+</div>
+
+<script>
+  import { $, $$, loadPref, savePref } from '../../lib/client';
+  import { readI18n } from '../../i18n/client';
+  import { formatNumber, plural, t } from '../../i18n/format';
+  import { LOCALE_INFO } from '../../i18n/locales';
+  import type { Strings } from './i18n';
+  import {
+    buildShift,
+    decimalsFor,
+    formatDuration,
+    msOfDay,
+    normalizeSettings,
+    paidMinutes,
+    rates,
+    countOf,
+    headlineReward,
+    rewardsFor,
+    snapshot,
+    type PayPeriod,
+    type Rates,
+    type Reward,
+    type RewardId,
+    type Settings,
+    type Shift,
+  } from './logic';
+
+  const root = $('[data-tool="salary-per-second"]');
+  const { s, locale } = readI18n<Strings['client']>(root);
+  const intl = LOCALE_INFO[locale].intl;
+  const prefKey = `salary-per-second:${locale}`;
+  const defaults = JSON.parse(root.dataset.defaults ?? '{}') as Settings;
+
+  const stage = $('#sp-stage', root);
+  const statusEl = $('#sp-status', root);
+  const intEl = $('#sp-int', root);
+  const fracEl = $('#sp-frac', root);
+  const bar = $('#sp-bar', root);
+  const fill = $('#sp-fill', root);
+  const percentEl = $('#sp-percent', root);
+  const countdownEl = $('#sp-countdown', root);
+  const nextEl = $('#sp-next', root);
+  const fsBtn = $<HTMLButtonElement>('#sp-fullscreen', root);
+  const rewardList = $('#sp-rewards', root);
+  const rewardsHint = $('#sp-rewards-hint', root);
+  const rewardItems = new Map($$<HTMLLIElement>('li[data-id]', rewardList).map((li) => [li.dataset.id as RewardId, li]));
+  const hoursEl = $('#sp-hours', root);
+  const rewardsHintText = rewardsHint.textContent ?? '';
+  const statEls = {
+    daily: $('#sp-daily', root),
+    hourly: $('#sp-hourly', root),
+    minute: $('#sp-minute', root),
+    second: $('#sp-second', root),
+  };
+
+  const periodRadios = $$<HTMLInputElement>('input[name="sp-period"]', root);
+  const payInput = $<HTMLInputElement>('#sp-pay', root);
+  const payLabel = $('#sp-pay-label', root);
+  const payLabels = JSON.parse(payLabel.dataset.labels ?? '{}') as Record<PayPeriod, string>;
+  const currencySelect = $<HTMLSelectElement>('#sp-currency', root);
+  const daysField = $('#sp-days-field', root);
+  const daysInput = $<HTMLInputElement>('#sp-days', root);
+  const startInput = $<HTMLInputElement>('#sp-start', root);
+  const endInput = $<HTMLInputElement>('#sp-end', root);
+  const breakBox = $<HTMLInputElement>('#sp-break-on', root);
+  const breakFields = $('#sp-break-fields', root);
+  const breakStartInput = $<HTMLInputElement>('#sp-break-start', root);
+  const breakEndInput = $<HTMLInputElement>('#sp-break-end', root);
+  const baseTitle = document.title;
+
+  let settings: Settings = normalizeSettings(loadPref<Partial<Settings> | null>(prefKey, null), defaults);
+  let shift: Shift;
+  let rate: Rates;
+  let rewards: Reward[] = [];
+  let ticker: Intl.NumberFormat;
+  let titleMoney: Intl.NumberFormat;
+  let lastRewardKey = '';
+  const last: Record<string, string> = {};
+
+  /** Currency formatter; without `decimals` it uses the currency's usual digits (2 for TWD, 0 for JPY). */
+  function money(decimals?: number): Intl.NumberFormat {
+    // zh-TW writes TWD as a bare "$"; en-US writes "NT$" with the same digit grouping.
+    const tag = locale === 'zh-TW' && settings.currency === 'TWD' ? 'en-US' : intl;
+    return new Intl.NumberFormat(tag, {
+      style: 'currency',
+      currency: settings.currency,
+      ...(decimals === undefined ? {} : { minimumFractionDigits: decimals, maximumFractionDigits: decimals }),
+    });
+  }
+
+  /** Write text only when it changed, so 60 updates a second stay cheap. */
+  function put(key: string, el: HTMLElement, text: string) {
+    if (last[key] === text) return;
+    last[key] = text;
+    el.textContent = text;
+  }
+
+  /* ---------- Settings ---------- */
+  function writeForm() {
+    for (const radio of periodRadios) radio.checked = radio.value === settings.period;
+    payInput.value = String(settings.pay);
+    currencySelect.value = settings.currency;
+    daysInput.value = String(settings.workDays);
+    startInput.value = settings.start;
+    endInput.value = settings.end;
+    breakBox.checked = settings.breakOn;
+    breakStartInput.value = settings.breakStart;
+    breakEndInput.value = settings.breakEnd;
+  }
+
+  function readForm(): Settings {
+    const period = periodRadios.find((r) => r.checked)?.value ?? settings.period;
+    return normalizeSettings(
+      {
+        period,
+        pay: payInput.value,
+        currency: currencySelect.value,
+        workDays: daysInput.value,
+        start: startInput.value,
+        end: endInput.value,
+        breakOn: breakBox.checked,
+        breakStart: breakStartInput.value,
+        breakEnd: breakEndInput.value,
+      },
+      settings,
+    );
+  }
+
+  function apply() {
+    shift = buildShift(settings);
+    rate = rates(settings, shift);
+    rewards = rewardsFor(settings.currency);
+    ticker = money(decimalsFor(rate.perSecond));
+    titleMoney = money();
+    lastRewardKey = '';
+
+    payLabel.textContent = payLabels[settings.period];
+    daysField.hidden = settings.period === 'hour';
+    breakFields.hidden = !settings.breakOn;
+    hoursEl.textContent = t(s.workHours, { h: formatNumber(paidMinutes(shift) / 60, 2, locale) });
+
+    statEls.daily.textContent = titleMoney.format(rate.daily);
+    statEls.hourly.textContent = titleMoney.format(rate.hourly);
+    statEls.minute.textContent = money(Math.max(2, decimalsFor(rate.perMinute) - 2)).format(rate.perMinute);
+    statEls.second.textContent = money(Math.max(2, decimalsFor(rate.perSecond) - 1)).format(rate.perSecond);
+  }
+
+  function onChange() {
+    settings = readForm();
+    savePref(prefKey, settings);
+    apply();
+    frame();
+  }
+
+  /* ---------- Rendering ---------- */
+  function renderAmount(value: number) {
+    const parts = ticker.formatToParts(value);
+    const cut = parts.findIndex((p) => p.type === 'decimal');
+    const head = cut < 0 ? parts : parts.slice(0, cut);
+    const tail = cut < 0 ? [] : parts.slice(cut);
+    put('int', intEl, head.map((p) => p.value).join(''));
+    put('frac', fracEl, tail.map((p) => p.value).join(''));
+  }
+
+  function amountText(reward: Reward, n: number): string {
+    return plural(locale, n, s.amounts[reward.id]);
+  }
+
+  function renderRewards(earned: number) {
+    if (rewards.length === 0) {
+      if (lastRewardKey !== 'none') {
+        lastRewardKey = 'none';
+        rewardList.hidden = true;
+        rewardsHint.textContent = s.noRewards;
+      }
+      put('next', nextEl, '');
+      return;
+    }
+    if (lastRewardKey !== settings.currency) {
+      lastRewardKey = settings.currency;
+      rewardList.hidden = false;
+      rewardsHint.textContent = rewardsHintText;
+      for (const reward of rewards) rewardList.append(rewardItems.get(reward.id)!);
+    }
+    const top = headlineReward(rewards, earned);
+    for (const reward of rewards) {
+      const li = rewardItems.get(reward.id)!;
+      const n = countOf(reward, earned);
+      li.classList.toggle('is-earned', n >= 1);
+      li.classList.toggle('is-top', reward === top);
+      put(`r:${reward.id}`, li.querySelector<HTMLElement>('.sp-reward-name')!, amountText(reward, n));
+    }
+
+    let text: string;
+    if (top) {
+      text = t(s.headline, { thing: amountText(top, countOf(top, earned)) });
+    } else {
+      const first = rewards[0];
+      const seconds = rate.perSecond > 0 ? (first.price - earned) / rate.perSecond : 0;
+      text = t(s.headlineSoon, { thing: amountText(first, 1), t: formatDuration(seconds * 1000) });
+    }
+    put('next', nextEl, text);
+  }
+
+  function frame() {
+    const snap = snapshot(settings, msOfDay(new Date()), shift);
+    if (stage.dataset.status !== snap.status) stage.dataset.status = snap.status;
+    put('status', statusEl, s.status[snap.status]);
+    renderAmount(snap.earned);
+
+    const pct = snap.progress * 100;
+    fill.style.transform = `scaleX(${snap.progress})`;
+    const pctText = `${formatNumber(pct, pct < 100 ? 1 : 0, locale)}%`;
+    if (last.pct !== pctText) bar.setAttribute('aria-valuenow', String(Math.floor(pct)));
+    put('pct', percentEl, pctText);
+    put('countdown', countdownEl, t(s.countdown[snap.status], { t: formatDuration(snap.untilNextMs), time: settings.start }));
+    renderRewards(snap.earned);
+    return snap;
+  }
+
+  function loop() {
+    frame();
+    requestAnimationFrame(loop);
+  }
+
+  /** The tab title keeps counting even when the tab is in the background. */
+  function updateTitle() {
+    const snap = snapshot(settings, msOfDay(new Date()), shift);
+    const title = snap.status === 'before' ? baseTitle : t(s.title, { amount: titleMoney.format(snap.earned) });
+    if (document.title !== title) document.title = title;
+  }
+
+  /* ---------- Full screen + keep the screen awake ---------- */
+  let wakeLock: WakeLockSentinel | null = null;
+
+  async function keepAwake(on: boolean) {
+    try {
+      if (on && !wakeLock && 'wakeLock' in navigator) {
+        wakeLock = await navigator.wakeLock.request('screen');
+        wakeLock.addEventListener('release', () => (wakeLock = null));
+      } else if (!on && wakeLock) {
+        await wakeLock.release();
+        wakeLock = null;
+      }
+    } catch {
+      /* not allowed (battery saver, unsupported); the meter still works */
+    }
+  }
+
+  // Phones: Android uses the Fullscreen API; iPhone Safari has none for elements,
+  // so the stage then covers the page as a fixed layer instead. Either way the layout
+  // fits portrait or a phone lying on its side next to you.
+  type WebkitDoc = Document & { webkitFullscreenElement?: Element; webkitFullscreenEnabled?: boolean; webkitExitFullscreen?: () => void };
+  type WebkitEl = HTMLElement & { webkitRequestFullscreen?: () => void };
+  const doc = document as WebkitDoc;
+  const native = () => (doc.fullscreenElement ?? doc.webkitFullscreenElement) === stage;
+
+  async function enterFull() {
+    const el = stage as WebkitEl;
+    stage.classList.add('is-full');
+    fsBtn.textContent = s.exitFullscreen;
+    void keepAwake(true);
+    try {
+      // Request first, while the click still counts as a user gesture.
+      if (doc.fullscreenEnabled && el.requestFullscreen) return void (await el.requestFullscreen());
+      if (doc.webkitFullscreenEnabled && el.webkitRequestFullscreen) return void el.webkitRequestFullscreen();
+    } catch {
+      /* fall through to the fixed layer */
+    }
+    stage.classList.add('is-overlay');
+    document.documentElement.classList.add('sp-lock');
+  }
+
+  function leaveFull() {
+    stage.classList.remove('is-full', 'is-overlay');
+    document.documentElement.classList.remove('sp-lock');
+    fsBtn.textContent = s.fullscreen;
+    void keepAwake(false);
+  }
+
+  fsBtn.addEventListener('click', () => {
+    if (!stage.classList.contains('is-full')) void enterFull();
+    else if (native()) void (document.exitFullscreen ? document.exitFullscreen() : doc.webkitExitFullscreen?.());
+    else leaveFull();
+  });
+  for (const type of ['fullscreenchange', 'webkitfullscreenchange']) {
+    document.addEventListener(type, () => {
+      if (!native() && !stage.classList.contains('is-overlay')) leaveFull();
+    });
+  }
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && stage.classList.contains('is-overlay')) leaveFull();
+  });
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && stage.classList.contains('is-full')) void keepAwake(true);
+  });
+
+  /* ---------- Events ---------- */
+  for (const radio of periodRadios) radio.addEventListener('change', onChange);
+  for (const el of [payInput, daysInput, startInput, endInput, breakStartInput, breakEndInput]) {
+    el.addEventListener('input', onChange);
+  }
+  currencySelect.addEventListener('change', onChange);
+  breakBox.addEventListener('change', onChange);
+
+  writeForm();
+  apply();
+  loop();
+  updateTitle();
+  window.setInterval(updateTitle, 1000);
+</script>
+
+<style>
+  [hidden] {
+    display: none !important;
+  }
+  .sp-stage {
+    position: relative;
+    display: grid;
+    gap: 12px;
+    padding: 28px 22px 22px;
+    border-radius: var(--radius);
+    background: var(--accent-soft);
+    border: 1px solid color-mix(in oklab, var(--accent) 14%, transparent);
+    text-align: center;
+  }
+  .sp-status {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-2);
+  }
+  .sp-amount {
+    font-family: var(--mono);
+    font-variant-numeric: tabular-nums;
+    font-weight: 700;
+    font-size: clamp(36px, 9vw, 72px);
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+    color: var(--text);
+    overflow-wrap: anywhere;
+  }
+  .sp-frac {
+    font-size: 0.55em;
+    color: var(--accent);
+  }
+  [data-status='break'] .sp-frac,
+  [data-status='before'] .sp-frac {
+    color: var(--muted);
+  }
+  .sp-bar {
+    height: 14px;
+    border-radius: 999px;
+    background: color-mix(in oklab, var(--accent) 12%, var(--surface));
+    overflow: hidden;
+  }
+  .sp-fill {
+    display: block;
+    height: 100%;
+    background: var(--accent);
+    transform: scaleX(0);
+    transform-origin: left center;
+  }
+  [data-status='after'] .sp-fill {
+    background: var(--success);
+  }
+  .sp-meta {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    font-size: 14px;
+    font-variant-numeric: tabular-nums;
+    color: var(--text-2);
+  }
+  .sp-next {
+    margin: 0;
+    min-height: 1.5em;
+    font-size: 18px;
+    font-weight: 700;
+  }
+  .sp-fs {
+    justify-self: center;
+  }
+  /* Full screen (native or the fixed layer on iPhone). Sizes follow the shorter side,
+     so the meter also fits a phone turned sideways. */
+  .sp-stage.is-full {
+    align-content: center;
+    gap: min(3vh, 3vw);
+    min-height: 100dvh;
+    padding: max(16px, env(safe-area-inset-top)) max(20px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom))
+      max(20px, env(safe-area-inset-left));
+    border: 0;
+    border-radius: 0;
+    box-sizing: border-box;
+  }
+  .sp-stage.is-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    height: 100dvh;
+    overflow: auto;
+  }
+  :global(html.sp-lock),
+  :global(html.sp-lock body) {
+    overflow: hidden;
+  }
+  .sp-stage.is-full .sp-amount {
+    font-size: clamp(40px, min(13vw, 22vh), 200px);
+  }
+  .sp-stage.is-full .sp-status,
+  .sp-stage.is-full .sp-next,
+  .sp-stage.is-full .sp-meta {
+    font-size: clamp(15px, min(2.6vw, 5vh), 34px);
+  }
+  .sp-stage.is-full .sp-bar {
+    width: min(100%, 1200px);
+    height: clamp(12px, 2.5vh, 28px);
+    justify-self: center;
+  }
+  .sp-stage.is-full .sp-meta {
+    width: min(100%, 1200px);
+    justify-self: center;
+  }
+  .sp-stage.is-full .sp-fs {
+    position: absolute;
+    top: max(10px, env(safe-area-inset-top));
+    right: max(10px, env(safe-area-inset-right));
+  }
+  /* A phone on its side: little height, so tighten the gaps. */
+  @media (orientation: landscape) and (max-height: 500px) {
+    .sp-stage.is-full {
+      gap: 1.5vh;
+    }
+    .sp-stage.is-full .sp-amount {
+      font-size: clamp(36px, min(10vw, 26vh), 160px);
+    }
+  }
+  .sp-rewards {
+    display: grid;
+    gap: 10px;
+  }
+  .sp-rewards-title {
+    margin: 0;
+    font-size: 16px;
+  }
+  .sp-reward-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 8px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .sp-reward-list :global(li) {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    color: var(--muted);
+  }
+  .sp-reward-list :global(li.is-earned) {
+    color: var(--text);
+  }
+  .sp-reward-list :global(li.is-top) {
+    border-color: color-mix(in oklab, var(--accent) 40%, transparent);
+    background: var(--accent-soft);
+  }
+  .sp-reward-list :global(.sp-reward-icon) {
+    flex: none;
+  }
+  .sp-reward-list :global(.is-top .sp-reward-icon) {
+    color: var(--accent);
+  }
+  .sp-reward-list :global(.sp-reward-name) {
+    flex: 1;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    text-align: start;
+  }
+  .sp-hours {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-2);
+  }
+  .sp-rewards .hint {
+    margin: 0;
+  }
+  .sp-settings {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+  }
+  .sp-settings summary {
+    padding: 10px 14px;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-2);
+    cursor: pointer;
+  }
+  .sp-settings[open] summary {
+    border-bottom: 1px solid var(--border);
+  }
+  .sp-settings-body {
+    display: grid;
+    gap: 14px;
+    padding: 14px;
+  }
+  .sp-settings-body .hint {
+    margin: 0;
+  }
+</style>
