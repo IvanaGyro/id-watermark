@@ -88,7 +88,7 @@ export default defineTool({
       a: 'サーバーには送信されません。計算はすべてブラウザ内で行い、次回のために最後の入力内容をお使いの端末にだけ保存します。',
     },
   ],
-  related: ['date-diff', 'countdown-timer', 'timezone-converter', 'life-in-weeks', 'birthday-moon', 'bmi-calculator'],
+  related: ['date-diff', 'countdown-timer', 'timezone-converter', 'birthday-candles', 'life-in-weeks', 'birthday-moon', 'bmi-calculator'],
   priority: 65,
   updated: '2026-10-29',
 });

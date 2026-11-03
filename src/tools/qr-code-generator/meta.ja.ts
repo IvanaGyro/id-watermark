@@ -89,7 +89,7 @@ export default defineTool({
       a: '送信されません。QR コードはお使いのブラウザ内で作成され、URL やパスワード、連絡先の情報がサーバーに送られることはありません。',
     },
   ],
-  related: ['password-generator', 'random-number', 'word-counter', 'led-marquee'],
+  related: ['password-generator', 'random-number', 'word-counter', 'birthday-candles', 'led-marquee'],
   priority: 80,
   updated: '2026-10-29',
 });

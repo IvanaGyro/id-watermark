@@ -87,7 +87,7 @@ export default defineTool({
       a: 'No. Everything runs in your browser. Your last entry is remembered only on your own device so it is there next time.',
     },
   ],
-  related: ['date-diff', 'countdown-timer', 'timezone-converter', 'life-in-weeks', 'birthday-moon', 'bmi-calculator'],
+  related: ['date-diff', 'countdown-timer', 'timezone-converter', 'birthday-candles', 'life-in-weeks', 'birthday-moon', 'bmi-calculator'],
   priority: 65,
   updated: '2026-10-29',
 });
