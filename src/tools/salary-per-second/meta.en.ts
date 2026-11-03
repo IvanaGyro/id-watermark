@@ -17,6 +17,9 @@ export default defineTool({
     'annual salary to daily pay',
     'paycheck calculator live',
     'work motivation',
+    'motivation to work',
+    'countdown to end of work day',
+    'how long until i get off work',
     'money earned today',
     'salary per minute',
   ],
@@ -37,7 +40,7 @@ export default defineTool({
       ],
     },
     {
-      heading: 'Why watch your pay tick up?',
+      heading: 'Why watching your pay boosts work motivation',
       body: [
         'A salary is a big, abstract number that shows up once or twice a month. Broken down into cents per second, it becomes visible: every email, every meeting and even this minute of staring at the wall is quietly paying you. Feedback you can see is far more motivating than a distant payday.',
         'The meter also turns the number into things you can picture, such as “You have already earned 3.2 lunches today”. It names the priciest item your pay already covers, so the count feels real at any salary. Early in the day, before you have earned even a coffee, it tells you how much longer that takes. Prices are rough everyday averages, not exact price data.',
@@ -52,6 +55,14 @@ export default defineTool({
     },
   ],
   faq: [
+    {
+      q: 'How does this help when I have no motivation to work?',
+      a: 'It breaks your salary into money earned every second, so each minute of work shows a visible reward. It also turns the total into things like lunches and concert tickets, which makes payday feel close. Put it in full screen on a second screen or a phone and glance at it when the day drags.',
+    },
+    {
+      q: 'Can I use it as a countdown to the end of the workday?',
+      a: 'Yes. The time left until clock-out is always shown next to the progress bar. During lunch it shows the time left in the break, and after work it shows when tomorrow’s shift starts.',
+    },
     {
       q: 'Does the counter keep going during lunch?',
       a: 'Not if “Unpaid lunch break” is ticked. The amount pauses and the screen shows how long the break has left. Untick it to count the whole day.',
