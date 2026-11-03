@@ -84,7 +84,7 @@ export default defineTool({
       a: '枚数の上限はありません。端末内で 1 枚ずつ順番に処理するため、枚数が多いと少し時間がかかるだけです。',
     },
   ],
-  related: ['image-resizer', 'image-converter', 'heic-to-jpg', 'image-crop', 'image-to-pdf', 'image-to-base64'],
+  related: ['image-resizer', 'image-converter', 'heic-to-jpg', 'id-watermark', 'image-crop', 'image-to-pdf', 'image-to-base64'],
   priority: 80,
   updated: '2026-10-29',
 });

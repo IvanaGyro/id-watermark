@@ -68,7 +68,7 @@ export default defineTool({
       a: '不在。圖片經由 Canvas 重新編碼後不會保留 EXIF 資料，拍攝地點、時間與相機資訊都會被移除；若選擇保留原檔則維持原樣。',
     },
   ],
-  related: ['image-resizer', 'image-converter', 'image-to-base64', 'qr-code-generator'],
+  related: ['image-resizer', 'image-converter', 'image-to-base64', 'id-watermark', 'qr-code-generator'],
   priority: 80,
   updated: '2026-10-29',
 });

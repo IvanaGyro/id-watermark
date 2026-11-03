@@ -85,7 +85,7 @@ export default defineTool({
       a: '要列印或繳交正式文件選 A4；只是要把截圖或長圖存成 PDF 分享，選「符合圖片」可以避免多餘白邊。',
     },
   ],
-  related: ['pdf-merge', 'heic-to-jpg', 'image-compressor', 'pdf-to-image', 'image-resizer'],
+  related: ['pdf-merge', 'heic-to-jpg', 'image-compressor', 'id-watermark', 'pdf-to-image', 'image-resizer'],
   priority: 90,
   updated: '2026-10-29',
 });

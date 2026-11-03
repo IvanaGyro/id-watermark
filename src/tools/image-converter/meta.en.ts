@@ -85,7 +85,7 @@ export default defineTool({
       a: 'No. Conversion uses your browser’s canvas, entirely on your device. Nothing is uploaded, which also makes it fast for large batches.',
     },
   ],
-  related: ['heic-to-jpg', 'image-compressor', 'image-resizer', 'image-to-pdf', 'image-to-base64', 'color-converter'],
+  related: ['heic-to-jpg', 'image-compressor', 'image-resizer', 'ascii-art', 'image-to-pdf', 'image-to-base64', 'color-converter'],
   priority: 70,
   updated: '2026-10-29',
 });

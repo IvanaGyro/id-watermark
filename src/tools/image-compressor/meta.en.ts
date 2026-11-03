@@ -85,7 +85,7 @@ export default defineTool({
       a: 'No fixed limit. Images are processed one after another on your device, so very large batches simply take a little longer.',
     },
   ],
-  related: ['image-resizer', 'image-converter', 'heic-to-jpg', 'image-crop', 'image-to-pdf', 'image-to-base64'],
+  related: ['image-resizer', 'image-converter', 'heic-to-jpg', 'id-watermark', 'image-crop', 'image-to-pdf', 'image-to-base64'],
   priority: 80,
   updated: '2026-10-29',
 });

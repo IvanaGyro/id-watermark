@@ -81,7 +81,7 @@ export default defineTool({
       a: 'There is no fixed limit and no sign-up. Very large batches depend on your device’s memory; on a phone, 50 or so full-size photos at a time is comfortable.',
     },
   ],
-  related: ['pdf-merge', 'heic-to-jpg', 'image-compressor', 'pdf-to-image', 'image-resizer'],
+  related: ['pdf-merge', 'heic-to-jpg', 'image-compressor', 'id-watermark', 'pdf-to-image', 'image-resizer'],
   priority: 90,
   updated: '2026-10-29',
 });

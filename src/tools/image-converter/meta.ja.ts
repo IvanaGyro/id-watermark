@@ -78,7 +78,7 @@ export default defineTool({
       a: 'いいえ。変換はブラウザの canvas を使って端末内で行われます。アップロードしないため、枚数が多くてもすばやく処理できます。',
     },
   ],
-  related: ['heic-to-jpg', 'image-compressor', 'image-resizer', 'image-to-pdf', 'image-to-base64', 'color-converter'],
+  related: ['heic-to-jpg', 'image-compressor', 'image-resizer', 'ascii-art', 'image-to-pdf', 'image-to-base64', 'color-converter'],
   priority: 70,
   updated: '2026-10-29',
 });

@@ -86,7 +86,7 @@ export default defineTool({
       a: '枚数の制限はありません。Safari は内蔵デコーダーで高速に変換できますが、Chrome・Edge・Firefox はページ内でデコードするため、1200 万画素の写真 1 枚に数秒かかります。スマートフォンでは 1 回 20 枚程度までがおすすめです。',
     },
   ],
-  related: ['image-converter', 'image-compressor', 'image-resizer', 'image-to-pdf', 'image-crop'],
+  related: ['image-converter', 'image-compressor', 'image-resizer', 'id-watermark', 'image-to-pdf', 'image-crop'],
   priority: 88,
   updated: '2026-10-29',
 });

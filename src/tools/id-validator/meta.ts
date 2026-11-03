@@ -85,7 +85,7 @@ export default defineTool({
       a: '2021 年 1 月 2 日起核發的新式統一證號為 1 碼英文字母加 9 碼數字，第 2 碼為 8 或 9；之前的舊式統一證號為 2 碼英文字母加 8 碼數字。兩種格式本工具都能驗證。',
     },
   ],
-  related: ['regex-tester', 'hash-generator', 'uuid-generator', 'number-base-converter', 'passport-name'],
+  related: ['regex-tester', 'hash-generator', 'uuid-generator', 'id-watermark', 'number-base-converter', 'passport-name'],
   priority: 65,
   updated: '2026-10-29',
 });

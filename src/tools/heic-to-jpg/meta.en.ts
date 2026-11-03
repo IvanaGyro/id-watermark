@@ -87,7 +87,7 @@ export default defineTool({
       a: 'There is no limit. Safari decodes HEIC natively and is very fast. Chrome, Edge and Firefox decode in the page, which takes a few seconds per 12-megapixel photo; on a phone, convert about 20 at a time.',
     },
   ],
-  related: ['image-converter', 'image-compressor', 'image-resizer', 'image-to-pdf', 'image-crop'],
+  related: ['image-converter', 'image-compressor', 'image-resizer', 'id-watermark', 'image-to-pdf', 'image-crop'],
   priority: 88,
   updated: '2026-10-29',
 });

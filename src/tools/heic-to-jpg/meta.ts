@@ -86,7 +86,7 @@ export default defineTool({
       a: '沒有張數限制。在 Safari 上使用內建解碼速度很快；Chrome、Edge 需在網頁中解碼，一張 1200 萬畫素的照片約需數秒，請耐心等候，手機上建議每次 20 張以內。',
     },
   ],
-  related: ['image-converter', 'image-compressor', 'image-resizer', 'image-to-pdf', 'image-crop'],
+  related: ['image-converter', 'image-compressor', 'image-resizer', 'id-watermark', 'image-to-pdf', 'image-crop'],
   priority: 88,
   updated: '2026-10-29',
 });

@@ -66,7 +66,7 @@ export default defineTool({
       a: '不會。所有轉換都在你的瀏覽器中完成，圖片不會傳到網路上。',
     },
   ],
-  related: ['image-compressor', 'image-resizer', 'image-to-base64', 'color-converter'],
+  related: ['image-compressor', 'image-resizer', 'image-to-base64', 'ascii-art', 'color-converter'],
   priority: 70,
   updated: '2026-10-29',
 });

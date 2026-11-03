@@ -88,7 +88,7 @@ export default defineTool({
       a: '「筆記体」か「太字筆記体」の行の「コピー」を押してください。名前やブランド名など、短い言葉に使うとおしゃれに見えます。',
     },
   ],
-  related: ['case-converter', 'fullwidth-halfwidth', 'word-counter', 'led-marquee', 'lorem-ipsum', 'qr-code-generator'],
+  related: ['case-converter', 'fullwidth-halfwidth', 'word-counter', 'ascii-art', 'led-marquee', 'lorem-ipsum', 'qr-code-generator'],
   priority: 75,
   updated: '2026-10-29',
 });

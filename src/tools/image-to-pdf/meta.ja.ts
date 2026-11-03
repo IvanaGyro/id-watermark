@@ -80,7 +80,7 @@ export default defineTool({
       a: '決まった上限はなく、登録も不要です。大量の場合は端末のメモリ次第で、スマホなら一度に 50 枚程度までが目安です。',
     },
   ],
-  related: ['pdf-merge', 'heic-to-jpg', 'image-compressor', 'pdf-to-image', 'image-resizer'],
+  related: ['pdf-merge', 'heic-to-jpg', 'image-compressor', 'id-watermark', 'pdf-to-image', 'image-resizer'],
   priority: 90,
   updated: '2026-10-29',
 });

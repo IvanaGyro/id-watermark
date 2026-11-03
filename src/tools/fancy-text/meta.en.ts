@@ -90,7 +90,7 @@ export default defineTool({
       a: 'Unicode only has styled versions of the plain letters A–Z and digits 0–9. Accented letters, emoji and other scripts stay as they are, though strikethrough and underline still apply to them.',
     },
   ],
-  related: ['case-converter', 'word-counter', 'lorem-ipsum', 'led-marquee', 'line-tools', 'qr-code-generator'],
+  related: ['case-converter', 'word-counter', 'lorem-ipsum', 'ascii-art', 'led-marquee', 'line-tools', 'qr-code-generator'],
   priority: 75,
   updated: '2026-10-29',
 });
