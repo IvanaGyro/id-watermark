@@ -1,0 +1,1278 @@
+---
+import { i18nAttrs, pickStrings, type ToolProps } from '../../i18n/tool';
+import { t } from '../../i18n/format';
+import Icon from '../../components/Icon.astro';
+import { DEFAULT_SETTINGS, FRAMES, PALETTE, PALETTE_IDS, SHAPES, WIDTH_PRESETS, MAX_SIDE, MIN_SIDE, paletteIndices } from './logic';
+import i18n from './i18n';
+
+type Props = ToolProps;
+const { locale = 'zh-TW' } = Astro.props;
+const s = pickStrings(i18n, locale);
+const d = DEFAULT_SETTINGS;
+---
+
+<div class="tool" data-tool="bead-pattern" {...i18nAttrs(locale, s.client)}>
+  <p class="notice ok bp-privacy">
+    <Icon name="Lock" size={18} class="bp-privacy-icon" />
+    <span><strong>{s.privacyStrong}</strong>{s.privacyText}</span>
+  </p>
+
+  <label class="dropzone bp-drop" id="bp-drop" tabindex="0">
+    <input type="file" id="bp-file" accept="image/*,.heic,.heif" hidden />
+    <Icon name="ImagePlus" size={26} class="bp-drop-icon" />
+    <strong>{s.dropTitle}</strong>
+    <span class="hint">{s.dropHint}</span>
+  </label>
+  <p class="hint bp-current" id="bp-current"></p>
+  <p class="notice error" id="bp-error" hidden></p>
+
+  <div class="bp-settings">
+    <div class="grid-2">
+      <div class="field">
+        <span class="label" id="bp-width-label">{s.widthLabel}</span>
+        <div class="bp-width-row">
+          <div class="seg" role="radiogroup" aria-labelledby="bp-width-label">
+            {
+              WIDTH_PRESETS.map((w) => (
+                <label>
+                  <input type="radio" name="bp-width" value={w} checked={w === d.width} />
+                  <span>{w}</span>
+                </label>
+              ))
+            }
+          </div>
+          <input id="bp-width" class="bp-width-input" type="number" inputmode="numeric" min={MIN_SIDE} max={MAX_SIDE} step="1" value={d.width} aria-label={s.widthCustom} />
+        </div>
+      </div>
+
+      <div class="field">
+        <span class="label" id="bp-frame-label">{s.frameLabel}</span>
+        <div class="seg" role="radiogroup" aria-labelledby="bp-frame-label">
+          {
+            FRAMES.map((f) => (
+              <label>
+                <input type="radio" name="bp-frame" value={f} checked={f === d.frame} />
+                <span>{s.frames[f]}</span>
+              </label>
+            ))
+          }
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="bp-palette">{s.paletteLabel}</label>
+        <select id="bp-palette">
+          {PALETTE_IDS.map((p) => <option value={p} selected={p === d.palette}>{t(s.palettes[p], { n: paletteIndices(p).length })}</option>)}
+        </select>
+      </div>
+      <div class="field">
+        <label for="bp-max">{s.maxColorsBefore}<output id="bp-max-out">{d.maxColors}</output>{s.maxColorsAfter}</label>
+        <input id="bp-max" type="range" min="2" max={PALETTE.length} step="1" value={d.maxColors} />
+      </div>
+      <div class="field">
+        <label for="bp-board">{s.boardLabel}</label>
+        <input id="bp-board" type="number" inputmode="numeric" min="5" max="100" step="1" value={d.board} />
+        <span class="hint">{s.boardHint}</span>
+      </div>
+      <div class="field">
+        <span class="label" id="bp-shape-label">{s.shapeLabel}</span>
+        <div class="seg" role="radiogroup" aria-labelledby="bp-shape-label">
+          {
+            SHAPES.map((shape) => (
+              <label>
+                <input type="radio" name="bp-shape" value={shape} checked={shape === d.shape} />
+                <span>{s.shapes[shape]}</span>
+              </label>
+            ))
+          }
+        </div>
+      </div>
+    </div>
+
+    <div class="bp-checks">
+      <label class="check"><input type="checkbox" id="bp-remove-bg" checked={d.removeBg} /> {s.removeBgLabel}</label>
+      <span class="hint">{s.removeBgHint}</span>
+      <label class="check"><input type="checkbox" id="bp-dither" checked={d.dither} /> {s.ditherLabel}</label>
+      <span class="hint">{s.ditherHint}</span>
+      <label class="check"><input type="checkbox" id="bp-symbols" checked={d.symbols} /> {s.symbolsLabel}</label>
+    </div>
+  </div>
+
+  <section class="bp-output bp-print">
+    <h2 class="bp-print-title">{s.client.exportTitle}</h2>
+    <div class="stats bp-stats">
+      <div class="stat"><span class="stat-value" id="bp-size">–</span><span class="stat-label">{s.statSize}</span><span class="stat-label bp-finished" id="bp-finished"></span></div>
+      <div class="stat"><span class="stat-value" id="bp-total">–</span><span class="stat-label">{s.statBeads}</span></div>
+      <div class="stat"><span class="stat-value" id="bp-colors">–</span><span class="stat-label">{s.statColors}</span></div>
+      <div class="stat"><span class="stat-value" id="bp-boards">–</span><span class="stat-label">{s.statBoards}</span></div>
+    </div>
+
+    <div class="bp-toolbar bp-no-print">
+      <div class="bp-zoom">
+        <button class="btn small bp-icon-btn" type="button" id="bp-zoom-out" aria-label={s.zoomOut} title={s.zoomOut}><Icon name="ZoomOut" size={18} /></button>
+        <button class="btn small bp-icon-btn" type="button" id="bp-zoom-in" aria-label={s.zoomIn} title={s.zoomIn}><Icon name="ZoomIn" size={18} /></button>
+        <button class="btn small bp-icon-btn" type="button" id="bp-zoom-fit" aria-label={s.zoomFit} title={s.zoomFit}><Icon name="Maximize2" size={18} /></button>
+      </div>
+      <div class="bp-history">
+        <span class="hint" id="bp-edited" hidden></span>
+        <button class="btn small" type="button" id="bp-undo" disabled><Icon name="Undo2" size={16} />{s.undo}</button>
+        <button class="btn small ghost" type="button" id="bp-reset-edits" hidden><Icon name="RotateCcw" size={16} />{s.resetEdits}</button>
+      </div>
+    </div>
+
+    <div class="bp-viewer bp-no-print" id="bp-viewer">
+      <canvas id="bp-canvas" width="1" height="1" role="img" aria-label={s.viewerAria}></canvas>
+    </div>
+    <canvas class="bp-print-canvas" id="bp-print-canvas" width="1" height="1" aria-hidden="true"></canvas>
+
+    <div class="bp-edit bp-no-print">
+      <h3 class="bp-subhead">{s.editTitle}</h3>
+      <p class="bp-brush-hint" id="bp-brush-hint" aria-live="polite">{s.client.editHint}</p>
+      <div class="bp-swatches" id="bp-swatches" role="group" aria-label={s.swatchesAria}>
+        <button class="bp-swatch bp-eraser" type="button" data-index="-1" aria-pressed="false" aria-label={s.eraser} title={s.eraser}>
+          <Icon name="Eraser" size={18} />
+        </button>
+        {
+          PALETTE.map((c) => (
+            <button
+              class="bp-swatch"
+              type="button"
+              data-index={c.index}
+              aria-pressed="false"
+              aria-label={t(s.client.colorWithSymbol, { name: c.names[locale], symbol: c.symbol })}
+              title={t(s.client.colorWithSymbol, { name: c.names[locale], symbol: c.symbol })}
+              style={`--c: ${c.hex}`}
+            ></button>
+          ))
+        }
+      </div>
+    </div>
+
+    <div class="bp-legend">
+      <h3 class="bp-subhead">{s.legendTitle}</h3>
+      <div class="table-wrap">
+        <table class="table bp-table">
+          <thead>
+            <tr>
+              <th scope="col">{s.client.colColor}</th>
+              <th scope="col">{s.client.colSymbol}</th>
+              <th scope="col">{s.client.colName}</th>
+              <th scope="col" class="num">{s.client.colCount}</th>
+            </tr>
+          </thead>
+          <tbody id="bp-legend-body"></tbody>
+          <tfoot>
+            <tr>
+              <th scope="row" colspan="3">{s.client.total}</th>
+              <td class="num" id="bp-legend-total">0</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+      <p class="hint bp-legend-empty" id="bp-legend-empty" hidden>{s.client.legendEmpty}</p>
+      <p class="hint bp-note">{s.colorNote}</p>
+    </div>
+  </section>
+
+  <div class="row bp-actions">
+    <button class="btn primary" type="button" id="bp-download"><Icon name="Download" size={18} />{s.download}</button>
+    <button class="btn" type="button" id="bp-print"><Icon name="Printer" size={18} />{s.print}</button>
+  </div>
+  <p class="hint bp-save-hint">{s.saveHint}</p>
+</div>
+
+<script>
+  import { $, $$, downloadBlob, loadPref, savePref } from '../../lib/client';
+  import { isHeic, prepareImage } from '../../lib/heic';
+  import { readI18n } from '../../i18n/client';
+  import { formatInteger, formatNumber, plural, t } from '../../i18n/format';
+  import type { Strings } from './i18n';
+  import {
+    PALETTE,
+    averageCells,
+    boardCount,
+    cellFromPoint,
+    cellsOnLine,
+    composeGrid,
+    downscaleSize,
+    exportFilename,
+    finishedSizeCm,
+    labelStep,
+    layoutGrid,
+    legend,
+    luminance,
+    normalizeSettings,
+    paintCell,
+    paletteIndices,
+    prepareCells,
+    quantize,
+    revertChanges,
+    samplingFactor,
+    textColorFor,
+    totalBeads,
+    type Cells,
+    type Change,
+    type Frame,
+    type PaletteId,
+    type Settings,
+    type Shape,
+  } from './logic';
+
+  interface Source {
+    canvas: HTMLCanvasElement;
+    width: number;
+    height: number;
+    name: string;
+    id: number;
+  }
+
+  const root = $('[data-tool="bead-pattern"]');
+  const { s, locale } = readI18n<Strings['client']>(root);
+  const prefKey = `bead-pattern:${locale}`;
+
+  const fileInput = $<HTMLInputElement>('#bp-file', root);
+  const drop = $('#bp-drop', root);
+  const currentEl = $('#bp-current', root);
+  const errorBox = $('#bp-error', root);
+  const widthRadios = $$<HTMLInputElement>('input[name="bp-width"]', root);
+  const widthInput = $<HTMLInputElement>('#bp-width', root);
+  const frameRadios = $$<HTMLInputElement>('input[name="bp-frame"]', root);
+  const paletteSelect = $<HTMLSelectElement>('#bp-palette', root);
+  const maxInput = $<HTMLInputElement>('#bp-max', root);
+  const maxOut = $('#bp-max-out', root);
+  const boardInput = $<HTMLInputElement>('#bp-board', root);
+  const shapeRadios = $$<HTMLInputElement>('input[name="bp-shape"]', root);
+  const removeBgBox = $<HTMLInputElement>('#bp-remove-bg', root);
+  const ditherBox = $<HTMLInputElement>('#bp-dither', root);
+  const symbolsBox = $<HTMLInputElement>('#bp-symbols', root);
+  const viewer = $('#bp-viewer', root);
+  const canvas = $<HTMLCanvasElement>('#bp-canvas', root);
+  const printCanvas = $<HTMLCanvasElement>('#bp-print-canvas', root);
+  const brushHint = $('#bp-brush-hint', root);
+  const swatches = $$<HTMLButtonElement>('.bp-swatch', root);
+  const undoBtn = $<HTMLButtonElement>('#bp-undo', root);
+  const resetBtn = $<HTMLButtonElement>('#bp-reset-edits', root);
+  const editedEl = $('#bp-edited', root);
+  const legendBody = $('#bp-legend-body', root);
+  const legendTotal = $('#bp-legend-total', root);
+  const legendEmpty = $('#bp-legend-empty', root);
+  const downloadBtn = $<HTMLButtonElement>('#bp-download', root);
+  const stat = {
+    size: $('#bp-size', root),
+    total: $('#bp-total', root),
+    colors: $('#bp-colors', root),
+    boards: $('#bp-boards', root),
+    finished: $('#bp-finished', root),
+  };
+
+  const ZOOM_STEPS = [4, 5, 6, 8, 10, 12, 14, 16, 20, 24, 28, 32, 40];
+  const BOARD_LINE = '#f0522e';
+  const EMPTY_PEG = '#e3e4e8';
+  const LABEL = '#80838c';
+  // Hole in the middle of each bead: the bead color mixed with black.
+  const HOLES = PALETTE.map((c) => `rgb(${c.rgb.map((v) => Math.round(v * 0.72)).join(' ')})`);
+  // Pale beads get a thin rim so white never looks like an empty peg.
+  const PALE = PALETTE.map((c) => luminance(c.rgb) > 0.55);
+
+  let settings: Settings = normalizeSettings(loadPref<unknown>(prefKey, null));
+  let source: Source | null = null;
+  let sourceSeq = 0;
+  let cells: Cells | null = null;
+  let cellsKey = '';
+  let quantKey = '';
+  let base: Int16Array = new Int16Array(0);
+  let grid: Int16Array = new Int16Array(0);
+  let cols = 0;
+  let rows = 0;
+  const overrides = new Map<number, number>();
+  let undoStack: Change[][] = [];
+  /** Palette index to paint with, -1 = eraser, null = not editing. */
+  let brush: number | null = null;
+  /** Bead size in CSS px, or null to fit the viewer width. */
+  let zoom: number | null = null;
+  let view = { cell: 10, gutter: 24 };
+
+  /* ---------- Settings ---------- */
+
+  function writeForm() {
+    for (const r of widthRadios) r.checked = Number(r.value) === settings.width;
+    widthInput.value = String(settings.width);
+    for (const r of frameRadios) r.checked = r.value === settings.frame;
+    paletteSelect.value = settings.palette;
+    for (const r of shapeRadios) r.checked = r.value === settings.shape;
+    boardInput.value = String(settings.board);
+    removeBgBox.checked = settings.removeBg;
+    ditherBox.checked = settings.dither;
+    symbolsBox.checked = settings.symbols;
+    syncPaletteUi();
+  }
+
+  const allowed = () => paletteIndices(settings.palette);
+  const effectiveMax = () => Math.min(settings.maxColors, allowed().length);
+
+  /** Range max follows the palette; the saved maxColors is kept so switching back restores it. */
+  function syncPaletteUi() {
+    const list = allowed();
+    maxInput.max = String(list.length);
+    maxInput.value = String(effectiveMax());
+    maxOut.textContent = String(effectiveMax());
+    const set = new Set(list);
+    for (const sw of swatches) {
+      const i = Number(sw.dataset.index);
+      if (i >= 0) sw.hidden = !set.has(i);
+    }
+    if (brush !== null && brush >= 0 && !set.has(brush)) setBrush(null);
+  }
+
+  function commit(patch: Partial<Settings>) {
+    settings = normalizeSettings({ ...settings, ...patch });
+    savePref(prefKey, settings);
+    syncPaletteUi();
+    rebuild();
+  }
+
+  /* ---------- Image loading ---------- */
+
+  async function decode(file: Blob): Promise<{ image: CanvasImageSource; width: number; height: number; close: () => void }> {
+    if (typeof createImageBitmap === 'function') {
+      try {
+        const bmp = await createImageBitmap(file, { imageOrientation: 'from-image' });
+        return { image: bmp, width: bmp.width, height: bmp.height, close: () => bmp.close() };
+      } catch {
+        /* fall back to <img> */
+      }
+    }
+    const url = URL.createObjectURL(file);
+    try {
+      const img = new Image();
+      img.src = url;
+      await img.decode();
+      return { image: img, width: img.naturalWidth, height: img.naturalHeight, close: () => {} };
+    } finally {
+      URL.revokeObjectURL(url);
+    }
+  }
+
+  /** Keep a downscaled copy only: every later step reads this small canvas, never the full photo. */
+  function toSource(image: CanvasImageSource, width: number, height: number, name: string): Source {
+    const size = downscaleSize(width, height);
+    const c = document.createElement('canvas');
+    c.width = size.width;
+    c.height = size.height;
+    const ctx = c.getContext('2d')!;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(image, 0, 0, size.width, size.height);
+    return { canvas: c, width: size.width, height: size.height, name, id: ++sourceSeq };
+  }
+
+  function setSource(next: Source) {
+    source = next;
+    overrides.clear();
+    undoStack = [];
+    errorBox.hidden = true;
+    currentEl.textContent = t(s.current, { name: next.name });
+    rebuild();
+  }
+
+  async function loadFile(file: File) {
+    if (!file.type.startsWith('image/') && !/\.(jpe?g|png|webp|gif|bmp|avif)$/i.test(file.name) && !isHeic(file.type, file.name)) {
+      showError(s.notImage);
+      return;
+    }
+    try {
+      const ready = await prepareImage(file);
+      const decoded = await decode(ready);
+      try {
+        setSource(toSource(decoded.image, decoded.width, decoded.height, file.name || 'image.png'));
+      } finally {
+        decoded.close();
+      }
+    } catch {
+      showError(s.readError);
+    }
+  }
+
+  function showError(message: string) {
+    errorBox.textContent = message;
+    errorBox.hidden = false;
+  }
+
+  /** A small mushroom so the tool shows a pattern before anything is uploaded. */
+  function sampleSource(): Source {
+    const c = document.createElement('canvas');
+    c.width = c.height = 300;
+    const ctx = c.getContext('2d')!;
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, 300, 300);
+    ctx.lineJoin = 'round';
+    ctx.lineWidth = 12;
+    ctx.strokeStyle = '#472a1a';
+    // Stem
+    ctx.fillStyle = '#f3e7c2';
+    ctx.beginPath();
+    ctx.roundRect(92, 138, 116, 128, 36);
+    ctx.fill();
+    ctx.stroke();
+    // Cap
+    ctx.fillStyle = '#d3272c';
+    ctx.beginPath();
+    ctx.moveTo(26, 160);
+    ctx.bezierCurveTo(26, 40, 274, 40, 274, 160);
+    ctx.quadraticCurveTo(150, 186, 26, 160);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = '#ffffff';
+    for (const [x, y, r] of [
+      [150, 82, 24],
+      [80, 124, 18],
+      [222, 122, 18],
+      [108, 66, 11],
+    ] as const) {
+      ctx.beginPath();
+      ctx.arc(x, y, r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    // Face
+    ctx.fillStyle = '#1d1d1f';
+    for (const x of [124, 176]) {
+      ctx.beginPath();
+      ctx.ellipse(x, 212, 9, 14, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.fillStyle = '#ee8ab1';
+    for (const x of [106, 194]) {
+      ctx.beginPath();
+      ctx.ellipse(x, 236, 12, 8, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    return { canvas: c, width: 300, height: 300, name: s.sampleName, id: ++sourceSeq };
+  }
+
+  /* ---------- Pipeline: sample → quantize → draw ---------- */
+
+  const work = document.createElement('canvas');
+
+  function sample(src: Source): Cells {
+    const lay = layoutGrid(src.width, src.height, settings.width, settings.frame as Frame);
+    const k = samplingFactor(lay.cols, lay.rows);
+    work.width = lay.cols * k;
+    work.height = lay.rows * k;
+    const ctx = work.getContext('2d', { willReadFrequently: true })!;
+    ctx.clearRect(0, 0, work.width, work.height);
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(src.canvas, lay.src.x, lay.src.y, lay.src.w, lay.src.h, lay.dest.x * k, lay.dest.y * k, lay.dest.w * k, lay.dest.h * k);
+    return averageCells(ctx.getImageData(0, 0, work.width, work.height).data, lay.cols, lay.rows, k);
+  }
+
+  function rebuild() {
+    if (!source) return;
+    const cKey = `${source.id}|${settings.width}|${settings.frame}`;
+    if (cKey !== cellsKey || !cells) {
+      cells = sample(source);
+      cellsKey = cKey;
+    }
+    const qKey = `${cKey}|${settings.removeBg}|${settings.palette}|${effectiveMax()}|${settings.dither}`;
+    if (qKey !== quantKey) {
+      quantKey = qKey;
+      if (cells.cols !== cols || cells.rows !== rows) {
+        overrides.clear();
+        undoStack = [];
+      }
+      cols = cells.cols;
+      rows = cells.rows;
+      base = quantize(prepareCells(cells, settings.removeBg), cols, rows, {
+        allowed: allowed(),
+        maxColors: effectiveMax(),
+        dither: settings.dither,
+      });
+    }
+    grid = composeGrid(base, overrides);
+    renderAll();
+  }
+
+  interface DrawSpec {
+    cell: number;
+    gutter: number;
+    font: number;
+  }
+
+  function gutterFor(font: number): number {
+    const digits = String(Math.max(cols, rows)).length;
+    return Math.ceil(font * 0.62 * digits) + Math.round(font * 0.9);
+  }
+
+  /** The pattern with coordinates; the grid itself starts at (gutter, gutter). */
+  function drawPattern(ctx: CanvasRenderingContext2D, { cell, gutter, font }: DrawSpec) {
+    const w = cols * cell;
+    const h = rows * cell;
+    const x0 = gutter;
+    const y0 = gutter;
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, x0 + w + 2, y0 + h + 2);
+
+    const byColor = new Map<number, number[]>();
+    for (let i = 0; i < grid.length; i++) {
+      const v = grid[i];
+      let list = byColor.get(v);
+      if (!list) byColor.set(v, (list = []));
+      list.push(i);
+    }
+    const round = settings.shape === 'circle';
+    const center = (i: number) => [x0 + (i % cols) * cell + cell / 2, y0 + Math.floor(i / cols) * cell + cell / 2];
+    const dots = (list: number[], r: number) => {
+      ctx.beginPath();
+      for (const i of list) {
+        const [cx, cy] = center(i);
+        ctx.moveTo(cx + r, cy);
+        ctx.arc(cx, cy, r, 0, Math.PI * 2);
+      }
+      ctx.fill();
+    };
+
+    // Empty pegs: a small dot on the pegboard.
+    const empties = byColor.get(-1);
+    if (empties && cell >= 5) {
+      ctx.fillStyle = EMPTY_PEG;
+      dots(empties, Math.max(0.8, cell * 0.1));
+    }
+    const showSymbols = settings.symbols && cell >= 9;
+    for (const [v, list] of byColor) {
+      if (v < 0) continue;
+      ctx.fillStyle = PALETTE[v].hex;
+      if (round) dots(list, cell * 0.46);
+      else {
+        ctx.beginPath();
+        for (const i of list) ctx.rect(x0 + (i % cols) * cell, y0 + Math.floor(i / cols) * cell, cell, cell);
+        ctx.fill();
+      }
+      if (PALE[v] && cell >= 5) {
+        const lw = Math.max(0.75, cell / 18);
+        ctx.strokeStyle = 'rgba(0, 0, 0, 0.32)';
+        ctx.lineWidth = lw;
+        ctx.beginPath();
+        for (const i of list) {
+          if (round) {
+            const [cx, cy] = center(i);
+            ctx.moveTo(cx + cell * 0.46 - lw / 2, cy);
+            ctx.arc(cx, cy, cell * 0.46 - lw / 2, 0, Math.PI * 2);
+          } else {
+            const inset = Math.max(lw, cell * 0.12);
+            ctx.rect(x0 + (i % cols) * cell + inset, y0 + Math.floor(i / cols) * cell + inset, cell - 2 * inset, cell - 2 * inset);
+          }
+        }
+        ctx.stroke();
+      }
+      if (round && !showSymbols && cell >= 7) {
+        ctx.fillStyle = HOLES[v];
+        dots(list, cell * 0.15);
+      }
+    }
+    if (showSymbols) {
+      ctx.font = `600 ${Math.round(cell * 0.56)}px ${s.font}`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      for (const [v, list] of byColor) {
+        if (v < 0) continue;
+        ctx.fillStyle = textColorFor(PALETTE[v].rgb);
+        for (const i of list) {
+          const [cx, cy] = center(i);
+          ctx.fillText(PALETTE[v].symbol, cx, cy + cell * 0.04);
+        }
+      }
+    }
+
+    const line = (style: string, width: number, every: number) => {
+      ctx.strokeStyle = style;
+      ctx.lineWidth = width;
+      ctx.beginPath();
+      for (let x = every; x < cols; x += every) {
+        ctx.moveTo(x0 + x * cell, y0);
+        ctx.lineTo(x0 + x * cell, y0 + h);
+      }
+      for (let y = every; y < rows; y += every) {
+        ctx.moveTo(x0, y0 + y * cell);
+        ctx.lineTo(x0 + w, y0 + y * cell);
+      }
+      ctx.stroke();
+    };
+    if (cell >= 4) line('rgba(0, 0, 0, 0.12)', 1, 1);
+    line('rgba(0, 0, 0, 0.42)', Math.max(1, cell / 12), 10);
+    line(BOARD_LINE, Math.max(1.5, cell / 7), Math.max(1, settings.board));
+    ctx.strokeStyle = '#3a3d44';
+    ctx.lineWidth = Math.max(1, cell / 12);
+    ctx.strokeRect(x0, y0, w, h);
+
+    // Coordinates along the top and left edges.
+    ctx.fillStyle = LABEL;
+    ctx.font = `${font}px ${s.font}`;
+    const step = labelStep(cell, font * 0.62 * String(cols).length + 4);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    // "1" marks the start, unless the next label (2) would crowd it.
+    const showOne = (st: number) => st === 1 || st >= 5;
+    for (let x = 1; x <= cols; x++) {
+      if (x % step !== 0 && !(x === 1 && showOne(step))) continue;
+      ctx.fillText(String(x), x0 + (x - 0.5) * cell, gutter / 2);
+    }
+    const rowStep = labelStep(cell, font + 2);
+    ctx.textAlign = 'right';
+    for (let y = 1; y <= rows; y++) {
+      if (y % rowStep !== 0 && !(y === 1 && showOne(rowStep))) continue;
+      ctx.fillText(String(y), gutter - font * 0.45, y0 + (y - 0.5) * cell);
+    }
+  }
+
+  /** Size a canvas for crisp lines on high-density screens without blowing the memory budget. */
+  function sizeCanvas(c: HTMLCanvasElement, cssW: number, cssH: number, density: number): CanvasRenderingContext2D {
+    const scale = Math.max(0.25, Math.min(density, 8192 / cssW, 8192 / cssH, Math.sqrt(36e6 / (cssW * cssH))));
+    c.width = Math.max(1, Math.round(cssW * scale));
+    c.height = Math.max(1, Math.round(cssH * scale));
+    const ctx = c.getContext('2d')!;
+    ctx.setTransform(c.width / cssW, 0, 0, c.height / cssH, 0, 0);
+    return ctx;
+  }
+
+  /** Fit the viewer width, and the screen height too unless that makes beads too small to tap. */
+  function fitCell(): number {
+    const room = gutterFor(11) + 2;
+    const byWidth = Math.floor((viewer.clientWidth - 2 - room) / Math.max(1, cols));
+    const byHeight = Math.floor((window.innerHeight * 0.75 - room) / Math.max(1, rows));
+    return Math.max(3, Math.min(28, byWidth, Math.max(byHeight, 8)));
+  }
+
+  function drawScreen() {
+    if (!cols) return;
+    const cell = zoom ?? fitCell();
+    const font = cell >= 16 ? 12 : 11;
+    const gutter = gutterFor(font);
+    view = { cell, gutter };
+    const cssW = gutter + cols * cell + 2;
+    const cssH = gutter + rows * cell + 2;
+    canvas.style.width = `${cssW}px`;
+    canvas.style.height = `${cssH}px`;
+    drawPattern(sizeCanvas(canvas, cssW, cssH, Math.min(window.devicePixelRatio || 1, 3)), { cell, gutter, font });
+  }
+
+  function exportSpec(): DrawSpec {
+    const cell = Math.max(12, Math.min(30, Math.floor(1600 / Math.max(cols, 1))));
+    const font = Math.max(12, Math.min(16, Math.round(cell * 0.5)));
+    return { cell, gutter: gutterFor(font), font };
+  }
+
+  function drawPrint() {
+    if (!cols) return;
+    const spec = exportSpec();
+    const cssW = spec.gutter + cols * spec.cell + 2;
+    const cssH = spec.gutter + rows * spec.cell + 2;
+    drawPattern(sizeCanvas(printCanvas, cssW, cssH, 1), spec);
+  }
+
+  function renderStats() {
+    const total = totalBeads(grid);
+    const boards = boardCount(cols, rows, settings.board);
+    const size = finishedSizeCm(cols, rows);
+    stat.size.textContent = `${cols} × ${rows}`;
+    stat.total.textContent = formatInteger(total, locale);
+    stat.colors.textContent = String(legend(grid).length);
+    stat.boards.textContent = t(s.boardsValue, { n: boards.total, a: boards.across, d: boards.down });
+    stat.finished.textContent = t(s.finished, { w: formatNumber(size.width, 1, locale), h: formatNumber(size.height, 1, locale) });
+  }
+
+  function renderLegend() {
+    const rowsData = legend(grid);
+    const frag = document.createDocumentFragment();
+    for (const r of rowsData) {
+      const c = PALETTE[r.index];
+      const tr = document.createElement('tr');
+      const sw = document.createElement('td');
+      const dot = document.createElement('span');
+      dot.className = 'bp-dot';
+      dot.style.setProperty('--c', c.hex);
+      sw.append(dot);
+      const sym = document.createElement('td');
+      sym.className = 'bp-sym';
+      sym.textContent = c.symbol;
+      const name = document.createElement('td');
+      name.textContent = c.names[locale];
+      const count = document.createElement('td');
+      count.className = 'num';
+      count.textContent = formatInteger(r.count, locale);
+      tr.append(sw, sym, name, count);
+      frag.append(tr);
+    }
+    legendBody.replaceChildren(frag);
+    legendTotal.textContent = formatInteger(totalBeads(grid), locale);
+    legendEmpty.hidden = rowsData.length > 0;
+  }
+
+  function renderHistory() {
+    undoBtn.disabled = undoStack.length === 0;
+    resetBtn.hidden = overrides.size === 0;
+    editedEl.hidden = overrides.size === 0;
+    editedEl.textContent = plural(locale, overrides.size, s.edited);
+  }
+
+  function renderAll() {
+    drawScreen();
+    renderStats();
+    renderLegend();
+    renderHistory();
+  }
+
+  let frame = 0;
+  function scheduleRender() {
+    if (frame) return;
+    frame = requestAnimationFrame(() => {
+      frame = 0;
+      renderAll();
+    });
+  }
+
+  /* ---------- Editing ---------- */
+
+  function setBrush(next: number | null) {
+    brush = next;
+    for (const sw of swatches) sw.setAttribute('aria-pressed', String(Number(sw.dataset.index) === next));
+    viewer.classList.toggle('is-painting', next !== null);
+    if (next === null) brushHint.textContent = s.editHint;
+    else if (next < 0) brushHint.textContent = s.eraserOn;
+    else brushHint.textContent = t(s.brushOn, { name: PALETTE[next].names[locale], symbol: PALETTE[next].symbol });
+  }
+
+  for (const sw of swatches) {
+    sw.addEventListener('click', () => {
+      const i = Number(sw.dataset.index);
+      setBrush(brush === i ? null : i);
+    });
+  }
+
+  function cellAt(e: PointerEvent | MouseEvent): number {
+    const rect = canvas.getBoundingClientRect();
+    const cssW = parseFloat(canvas.style.width) || rect.width;
+    const scale = cssW / rect.width;
+    return cellFromPoint((e.clientX - rect.left) * scale, (e.clientY - rect.top) * scale, view.gutter, view.gutter, view.cell, cols, rows);
+  }
+
+  let stroke: Change[] | null = null;
+  let lastCell = -1;
+  let pointerKind = '';
+
+  function paintTo(index: number) {
+    if (brush === null || !stroke) return;
+    for (const i of cellsOnLine(lastCell, index, cols)) {
+      const change = paintCell(base, overrides, i, brush);
+      if (change) stroke.push(change);
+    }
+    lastCell = index;
+    grid = composeGrid(base, overrides);
+    scheduleRender();
+  }
+
+  function endStroke() {
+    if (stroke && stroke.length) undoStack.push(stroke);
+    if (undoStack.length > 300) undoStack.shift();
+    stroke = null;
+    lastCell = -1;
+    renderHistory();
+  }
+
+  canvas.addEventListener('pointerdown', (e) => {
+    pointerKind = e.pointerType;
+    // Mouse drags paint; on touch screens a drag scrolls, so a tap (click) paints instead.
+    if (brush === null || e.pointerType !== 'mouse' || e.button !== 0) return;
+    e.preventDefault();
+    canvas.setPointerCapture(e.pointerId);
+    stroke = [];
+    lastCell = -1;
+    paintTo(cellAt(e));
+  });
+  canvas.addEventListener('pointermove', (e) => {
+    if (stroke) paintTo(cellAt(e));
+  });
+  canvas.addEventListener('pointerup', endStroke);
+  canvas.addEventListener('pointercancel', endStroke);
+  canvas.addEventListener('click', (e) => {
+    if (pointerKind === 'mouse' && brush !== null) return;
+    const index = cellAt(e);
+    if (index < 0) return;
+    if (brush === null) {
+      const v = grid[index];
+      brushHint.textContent = t(s.cellInfo, {
+        x: (index % cols) + 1,
+        y: Math.floor(index / cols) + 1,
+        name: v < 0 ? s.emptyName : t(s.colorWithSymbol, { name: PALETTE[v].names[locale], symbol: PALETTE[v].symbol }),
+      });
+      return;
+    }
+    stroke = [];
+    lastCell = -1;
+    paintTo(index);
+    endStroke();
+  });
+
+  function undo() {
+    const last = undoStack.pop();
+    if (!last) return;
+    revertChanges(overrides, last);
+    grid = composeGrid(base, overrides);
+    renderAll();
+  }
+
+  undoBtn.addEventListener('click', undo);
+  resetBtn.addEventListener('click', () => {
+    const changes: Change[] = [...overrides].map(([index, prev]) => ({ index, prev, next: base[index] }));
+    if (!changes.length) return;
+    overrides.clear();
+    undoStack.push(changes);
+    grid = composeGrid(base, overrides);
+    renderAll();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (!(e.ctrlKey || e.metaKey) || e.shiftKey || e.key.toLowerCase() !== 'z') return;
+    if ((e.target as HTMLElement | null)?.closest('input, textarea, select, [contenteditable]')) return;
+    if (!undoStack.length) return;
+    e.preventDefault();
+    undo();
+  });
+
+  /* ---------- Zoom ---------- */
+
+  $('#bp-zoom-in', root).addEventListener('click', () => {
+    const cur = zoom ?? fitCell();
+    zoom = ZOOM_STEPS.find((z) => z > cur) ?? ZOOM_STEPS[ZOOM_STEPS.length - 1];
+    drawScreen();
+  });
+  $('#bp-zoom-out', root).addEventListener('click', () => {
+    const cur = zoom ?? fitCell();
+    zoom = [...ZOOM_STEPS].reverse().find((z) => z < cur) ?? ZOOM_STEPS[0];
+    drawScreen();
+  });
+  $('#bp-zoom-fit', root).addEventListener('click', () => {
+    zoom = null;
+    drawScreen();
+  });
+
+  /* ---------- Export and print ---------- */
+
+  function exportCanvas(): HTMLCanvasElement {
+    const spec = exportSpec();
+    const rowsData = legend(grid);
+    const pad = 32;
+    const patternW = spec.gutter + cols * spec.cell + 2;
+    const patternH = spec.gutter + rows * spec.cell + 2;
+    const width = Math.max(patternW + pad * 2, 640);
+    const colW = 250;
+    const perRow = Math.max(1, Math.floor((width - pad * 2) / colW));
+    const entryH = 34;
+    const legendRows = Math.ceil(rowsData.length / perRow);
+    const headH = 76;
+    const legendTop = headH + patternH + 28;
+    const height = legendTop + legendRows * entryH + 56;
+
+    const out = document.createElement('canvas');
+    out.width = width;
+    out.height = height;
+    const ctx = out.getContext('2d')!;
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, width, height);
+
+    const total = totalBeads(grid);
+    const boards = boardCount(cols, rows, settings.board);
+    ctx.fillStyle = '#18191c';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
+    ctx.font = `700 24px ${s.font}`;
+    ctx.fillText(s.exportTitle, pad, 40);
+    ctx.fillStyle = '#4a4d55';
+    ctx.font = `15px ${s.font}`;
+    ctx.fillText(
+      `${cols} × ${rows} · ${plural(locale, total, s.beads)} · ${plural(locale, boards.total, s.pegboards)} (${boards.across} × ${boards.down})`,
+      pad,
+      64,
+    );
+
+    ctx.save();
+    ctx.translate(Math.round((width - patternW) / 2), headH);
+    drawPattern(ctx, spec);
+    ctx.restore();
+
+    rowsData.forEach((r, n) => {
+      const c = PALETTE[r.index];
+      const x = pad + (n % perRow) * colW;
+      const y = legendTop + Math.floor(n / perRow) * entryH;
+      ctx.fillStyle = c.hex;
+      ctx.beginPath();
+      ctx.arc(x + 12, y + 12, 12, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(0, 0, 0, 0.25)';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      ctx.fillStyle = textColorFor(c.rgb);
+      ctx.font = `600 13px ${s.font}`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(c.symbol, x + 12, y + 13);
+      ctx.fillStyle = '#18191c';
+      ctx.textAlign = 'left';
+      ctx.font = `15px ${s.font}`;
+      ctx.fillText(c.names[locale], x + 32, y + 13);
+      ctx.textAlign = 'right';
+      ctx.font = `600 15px ${s.font}`;
+      ctx.fillText(formatInteger(r.count, locale), x + colW - 24, y + 13);
+    });
+
+    ctx.fillStyle = LABEL;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
+    ctx.font = `13px ${s.font}`;
+    ctx.fillText(s.exportNote, pad, height - 22);
+    return out;
+  }
+
+  downloadBtn.addEventListener('click', () => {
+    if (!cols) return;
+    errorBox.hidden = true;
+    downloadBtn.disabled = true;
+    let out: HTMLCanvasElement | null = null;
+    try {
+      out = exportCanvas();
+      const done = out;
+      done.toBlob((blob) => {
+        downloadBtn.disabled = false;
+        if (blob) downloadBlob(blob, exportFilename(cols, rows));
+        else showError(s.exportError);
+        done.width = done.height = 0;
+      }, 'image/png');
+    } catch {
+      downloadBtn.disabled = false;
+      showError(s.exportError);
+    }
+  });
+
+  $('#bp-print', root).addEventListener('click', () => {
+    drawPrint();
+    window.print();
+  });
+  window.addEventListener('beforeprint', drawPrint);
+
+  /* ---------- Form events ---------- */
+
+  for (const r of widthRadios) {
+    r.addEventListener('change', () => {
+      widthInput.value = r.value;
+      commit({ width: Number(r.value) });
+    });
+  }
+  widthInput.addEventListener('input', () => {
+    const n = Number(widthInput.value);
+    if (!Number.isFinite(n) || n < 1) return;
+    for (const r of widthRadios) r.checked = Number(r.value) === Math.round(n);
+    commit({ width: n });
+  });
+  widthInput.addEventListener('change', () => {
+    widthInput.value = String(settings.width);
+    for (const r of widthRadios) r.checked = Number(r.value) === settings.width;
+  });
+  for (const r of frameRadios) r.addEventListener('change', () => commit({ frame: r.value as Frame }));
+  for (const r of shapeRadios) r.addEventListener('change', () => commit({ shape: r.value as Shape }));
+  paletteSelect.addEventListener('change', () => commit({ palette: paletteSelect.value as PaletteId }));
+  maxInput.addEventListener('input', () => {
+    maxOut.textContent = maxInput.value;
+    commit({ maxColors: Number(maxInput.value) });
+  });
+  boardInput.addEventListener('input', () => {
+    const n = Number(boardInput.value);
+    if (Number.isFinite(n) && n >= 5) commit({ board: n });
+  });
+  boardInput.addEventListener('change', () => (boardInput.value = String(settings.board)));
+  removeBgBox.addEventListener('change', () => commit({ removeBg: removeBgBox.checked }));
+  ditherBox.addEventListener('change', () => commit({ dither: ditherBox.checked }));
+  symbolsBox.addEventListener('change', () => commit({ symbols: symbolsBox.checked }));
+
+  /* ---------- File input, drop and paste ---------- */
+
+  fileInput.addEventListener('change', () => {
+    const file = fileInput.files?.[0];
+    if (file) void loadFile(file);
+    fileInput.value = '';
+  });
+  drop.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      fileInput.click();
+    }
+  });
+  drop.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    drop.classList.add('is-over');
+  });
+  drop.addEventListener('dragleave', () => drop.classList.remove('is-over'));
+  drop.addEventListener('drop', (e) => {
+    e.preventDefault();
+    drop.classList.remove('is-over');
+    const file = e.dataTransfer?.files[0];
+    if (file) void loadFile(file);
+  });
+  document.addEventListener('paste', (e) => {
+    const target = e.target as HTMLElement | null;
+    if (target?.closest('input, textarea, [contenteditable]')) return;
+    const file = Array.from(e.clipboardData?.files ?? []).find((f) => f.type.startsWith('image/'));
+    if (!file) return;
+    e.preventDefault();
+    void loadFile(file);
+  });
+
+  let lastWidth = 0;
+  const onResize = () => {
+    if (viewer.clientWidth === lastWidth) return;
+    lastWidth = viewer.clientWidth;
+    if (zoom === null) drawScreen();
+  };
+  if (typeof ResizeObserver !== 'undefined') new ResizeObserver(onResize).observe(viewer);
+  else window.addEventListener('resize', onResize);
+
+  writeForm();
+  setSource(sampleSource());
+</script>
+
+<style>
+  .bp-privacy {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    margin: 0;
+  }
+  .bp-privacy :global(.bp-privacy-icon) {
+    flex: none;
+    margin-top: 2px;
+  }
+  .bp-drop {
+    min-height: 112px;
+    padding: 16px;
+  }
+  .bp-drop :global(.bp-drop-icon) {
+    color: var(--muted);
+  }
+  .bp-current {
+    margin: -8px 0 0;
+    overflow-wrap: anywhere;
+  }
+  .bp-current:empty {
+    display: none;
+  }
+  .bp-settings {
+    display: grid;
+    gap: 16px;
+  }
+  .bp-settings .seg {
+    justify-self: start;
+  }
+  .bp-width-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+  }
+  .bp-width-input {
+    width: 96px !important;
+  }
+  .bp-checks {
+    display: grid;
+    gap: 4px;
+  }
+  .bp-checks .hint {
+    margin: 0 0 6px 24px;
+  }
+  .bp-output {
+    display: grid;
+    gap: 14px;
+    min-width: 0;
+  }
+  .bp-print-title,
+  .bp-print-canvas {
+    display: none;
+  }
+  .bp-stats .stat-value {
+    font-size: 19px;
+  }
+  .bp-finished {
+    margin-top: 2px;
+    color: var(--text-2);
+  }
+  .bp-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .bp-zoom,
+  .bp-history {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+  }
+  .bp-icon-btn {
+    width: 36px;
+    padding: 0;
+  }
+  .bp-viewer {
+    overflow: auto;
+    max-height: 80vh;
+    padding: 1px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    -webkit-overflow-scrolling: touch;
+  }
+  .bp-viewer canvas {
+    display: block;
+    max-width: none;
+    margin: 0 auto;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .bp-viewer.is-painting canvas {
+    cursor: crosshair;
+  }
+  .bp-subhead {
+    margin: 0 0 6px;
+    font-size: 16px;
+  }
+  .bp-brush-hint {
+    margin: 0 0 10px;
+    min-height: 1.5em;
+    font-size: 14px;
+    color: var(--text-2);
+  }
+  .bp-swatches {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .bp-swatch {
+    display: grid;
+    place-items: center;
+    width: 34px;
+    height: 34px;
+    padding: 0;
+    border: 1px solid rgb(0 0 0 / 0.18);
+    border-radius: 50%;
+    background: var(--c, var(--surface));
+    color: var(--text-2);
+    cursor: pointer;
+    transition: transform 0.1s, box-shadow 0.1s;
+  }
+  .bp-swatch:hover {
+    transform: scale(1.08);
+  }
+  .bp-swatch[aria-pressed='true'] {
+    box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--text);
+  }
+  .bp-eraser {
+    border-style: dashed;
+    border-color: var(--border-strong);
+  }
+  .bp-legend .hint {
+    margin: 8px 0 0;
+  }
+  .bp-table :global(.bp-dot) {
+    display: inline-block;
+    width: 18px;
+    height: 18px;
+    vertical-align: middle;
+    border-radius: 50%;
+    background: var(--c);
+    border: 1px solid rgb(0 0 0 / 0.18);
+  }
+  .bp-table :global(.bp-sym) {
+    font-family: var(--mono);
+    font-weight: 700;
+  }
+  .bp-table tfoot th,
+  .bp-table tfoot td {
+    font-weight: 700;
+    border-top: 1px solid var(--border-strong);
+    border-bottom: 0;
+  }
+  .bp-table tfoot th {
+    background: none;
+    color: var(--text);
+  }
+  .bp-actions :global(svg) {
+    flex: none;
+  }
+  .bp-save-hint {
+    margin: -6px 0 0;
+  }
+
+  /* Print just the pattern and the shopping list. */
+  @media print {
+    :global(body *:not(:has(.bp-print)):not(.bp-print):not(.bp-print *)) {
+      display: none !important;
+    }
+    :global(*:has(.bp-print)) {
+      display: block !important;
+      position: static !important;
+      width: auto !important;
+      max-width: none !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      border: 0 !important;
+      box-shadow: none !important;
+      background: none !important;
+    }
+    .bp-no-print {
+      display: none !important;
+    }
+    .bp-output {
+      display: block;
+    }
+    .bp-print-title {
+      display: block;
+      margin: 0 0 8px;
+      font-size: 18pt;
+    }
+    .bp-stats {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      margin-bottom: 10px;
+    }
+    .bp-stats .stat {
+      padding: 4px 6px;
+      background: none;
+      border: 1px solid #ccc;
+    }
+    .bp-stats .stat-value {
+      font-size: 12pt;
+    }
+    .bp-print-canvas {
+      display: block;
+      width: auto;
+      height: auto;
+      max-width: 100%;
+      max-height: 23cm;
+      margin: 0 auto 12px;
+    }
+    .bp-legend {
+      break-before: auto;
+    }
+    .bp-table {
+      font-size: 10pt;
+    }
+    .bp-table :global(th),
+    .bp-table :global(td) {
+      padding: 3px 8px;
+    }
+    .bp-table :global(tr) {
+      break-inside: avoid;
+    }
+    .bp-table :global(.bp-dot) {
+      print-color-adjust: exact;
+      -webkit-print-color-adjust: exact;
+    }
+  }
+</style>
