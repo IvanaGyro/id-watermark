@@ -1,0 +1,1234 @@
+---
+import Icon from '../../components/Icon.astro';
+import { i18nAttrs, pickStrings, type ToolProps } from '../../i18n/tool';
+import { facesOf, MODES, OUTCOMES, QUESTION_MAX, STAGE, STREAK_TARGET, type Face } from './logic';
+import { t } from '../../i18n/format';
+import i18n from './i18n';
+
+type Props = ToolProps;
+const { locale = 'zh-TW' } = Astro.props;
+const s = pickStrings(i18n, locale);
+const outcomes = s.client.outcomes;
+const tpl = (face: Face) => (face === 'flat' ? '#mb-flat-tpl' : '#mb-round-tpl');
+---
+
+<div class="tool" data-tool="moon-blocks" {...i18nAttrs(locale, s.client)}>
+  <div class="field">
+    <label for="mb-question">{s.questionLabel}</label>
+    <input id="mb-question" type="text" maxlength={QUESTION_MAX} placeholder={s.questionPlaceholder} autocomplete="off" enterkeyhint="go" />
+  </div>
+
+  <section class="mb-stage" id="mb-stage" data-mode="single">
+    <p class="mb-asked" id="mb-asked" hidden></p>
+    <ol class="mb-streak" id="mb-streak" aria-label={s.streakAria} hidden>
+      {
+        Array.from({ length: STREAK_TARGET }, (_, i) => (
+          <li aria-label={t(s.client.streakSlot, { n: i + 1 })}>
+            <Icon name="Check" size={16} strokeWidth={3} class="mb-streak-check" />
+            <span class="mb-streak-n">{i + 1}</span>
+          </li>
+        ))
+      }
+    </ol>
+
+    <div class="mb-scene" id="mb-scene">
+    <svg class="mb-svg" id="mb-svg" viewBox={`0 0 ${STAGE.width} ${STAGE.height}`} role="img" aria-label={s.stageDesc}>
+      <defs>
+        <linearGradient id="mb-wall" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#fdfaf6" />
+          <stop offset="1" stop-color="#f7efe6" />
+        </linearGradient>
+        <linearGradient id="mb-ground" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#eee2d4" />
+          <stop offset="1" stop-color="#e3d2c0" />
+        </linearGradient>
+        <radialGradient id="mb-dome" cx="0.5" cy="0.42" r="0.62">
+          <stop offset="0" stop-color="#f27a62" />
+          <stop offset="0.42" stop-color="#d8402d" />
+          <stop offset="0.82" stop-color="#a8261b" />
+          <stop offset="1" stop-color="#7f1a12" />
+        </radialGradient>
+        <linearGradient id="mb-flatface" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#e2604a" />
+          <stop offset="1" stop-color="#d5503b" />
+        </linearGradient>
+        <path
+          id="mb-shape"
+          d="M-52-18A3.5 3.5 0 0 0-52-11C-35 34 35 34 52-11A3.5 3.5 0 0 0 52-18C33 2-33 2-52-18Z"
+        />
+        <clipPath id="mb-clip"><use href="#mb-shape" /></clipPath>
+        <!-- Flat face: one even colour, a sharp bevel along the rim and faint saw marks. -->
+        <g id="mb-flat-tpl">
+          <use href="#mb-shape" fill="url(#mb-flatface)" />
+          <g clip-path="url(#mb-clip)">
+            <use href="#mb-shape" fill="none" stroke="#f7b3a2" stroke-width="5" opacity="0.75" />
+          </g>
+          <path d="M-36-1C-16 12 16 12 36-1M-22 9C-9 16 9 16 22 9" fill="none" stroke="#b8382a" stroke-width="1.1" stroke-linecap="round" opacity="0.5" />
+          <use href="#mb-shape" fill="none" stroke="#7a1912" stroke-width="1.2" />
+        </g>
+        <!-- Round face: a shaded dome with a glossy ridge. -->
+        <g id="mb-round-tpl">
+          <use href="#mb-shape" fill="url(#mb-dome)" />
+          <path d="M-38-4C-16 11 16 11 38-4" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round" opacity="0.3" />
+          <path d="M-14 6C-6 9 6 9 14 6" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" opacity="0.55" />
+          <use href="#mb-shape" fill="none" stroke="#6a140e" stroke-width="1.2" />
+        </g>
+      </defs>
+
+      <rect width={STAGE.width} height="100" fill="url(#mb-wall)" />
+      <rect y="96" width={STAGE.width} height={STAGE.height - 96} fill="url(#mb-ground)" />
+      <g class="mb-tiles" aria-hidden="true">
+        <path d="M0 96H360M0 118H360M0 146H360M0 182H360M0 228H360" />
+        <path d="M180 96V250M120 96 40 250M240 96 320 250M60 96-100 250M300 96 460 250" />
+      </g>
+
+      <g id="mb-shadows">
+        <ellipse class="mb-shadow" rx="50" ry="11" />
+        <ellipse class="mb-shadow" rx="50" ry="11" />
+      </g>
+      <g id="mb-blocks">
+        {
+          [0, 1].map(() => (
+            <g class="mb-blk">
+              <use href="#mb-shape" class="mb-side" />
+              <g class="mb-top">
+                <use href="#mb-flat-tpl" class="mb-face-flat" />
+                <use href="#mb-round-tpl" class="mb-face-round" />
+              </g>
+            </g>
+          ))
+        }
+      </g>
+      <g id="mb-labels">
+        <text class="mb-label" text-anchor="middle" visibility="hidden"></text>
+        <text class="mb-label" text-anchor="middle" visibility="hidden"></text>
+      </g>
+    </svg>
+      <div class="mb-verdict" id="mb-verdict" aria-hidden="true">
+        <strong class="mb-verdict-name" id="mb-verdict-name" hidden></strong>
+        <span class="mb-verdict-short" id="mb-verdict-short">{s.client.idle}</span>
+      </div>
+    </div>
+
+    <div class="mb-actions">
+      <button class="btn primary mb-throw" type="button" id="mb-throw">{s.throwBtn}</button>
+      <button class="btn mb-shake" type="button" id="mb-shake" aria-pressed="false" hidden>
+        <Icon name="Vibrate" size={18} />
+        <span id="mb-shake-label">{s.client.shakeOff}</span>
+      </button>
+    </div>
+
+    <div class="mb-result" id="mb-result" aria-live="polite">
+      <p class="visually-hidden" id="mb-result-name"></p>
+      <p class="mb-result-detail" id="mb-result-detail" hidden></p>
+      <p class="mb-streak-msg" id="mb-streak-msg" hidden></p>
+    </div>
+  </section>
+
+  <p class="notice" id="mb-notice" role="status" hidden></p>
+  <div class="row between mb-controls">
+    <div class="seg" role="radiogroup" aria-label={s.modeLabel}>
+      {
+        MODES.map((m) => (
+          <label>
+            <input type="radio" name="mb-mode" value={m} checked={m === 'single'} />
+            <span>{s.modes[m]}</span>
+          </label>
+        ))
+      }
+    </div>
+    <button class="btn small ghost mb-sound" type="button" id="mb-sound" aria-pressed="true" title={s.client.soundOn}>
+      <Icon name="Volume2" size={18} class="mb-sound-on" />
+      <Icon name="VolumeX" size={18} class="mb-sound-off" />
+      <span>{s.sound}</span>
+    </button>
+  </div>
+  <p class="hint mb-keys">{s.keysHint}</p>
+
+  <section class="mb-legend" aria-labelledby="mb-legend-title">
+    <h3 class="mb-h" id="mb-legend-title">{s.legendTitle}</h3>
+    <ul class="mb-legend-list">
+      {
+        OUTCOMES.map((o) => (
+          <li data-outcome={o}>
+            <svg class="mb-mini" viewBox="0 0 140 52" aria-hidden="true">
+              {facesOf(o).map((face, i) => (
+                <g transform={`translate(${i === 0 ? 37 : 103} 24) rotate(${i === 0 ? -7 : 7}) scale(0.56)`}>
+                  <use href="#mb-shape" class="mb-side" transform={`translate(0 ${face === 'flat' ? 8 : 5})`} />
+                  <use href={tpl(face)} />
+                </g>
+              ))}
+            </svg>
+            <div class="mb-legend-text">
+              <p class="mb-legend-name">
+                <strong>{outcomes[o].name}</strong>
+                <span>{outcomes[o].faces}</span>
+              </p>
+              <p class="mb-legend-short">{outcomes[o].short}</p>
+            </div>
+          </li>
+        ))
+      }
+    </ul>
+  </section>
+
+  <section class="mb-history" aria-labelledby="mb-history-title">
+    <div class="row between">
+      <h3 class="mb-h" id="mb-history-title">{s.historyTitle}</h3>
+      <button class="btn small ghost" type="button" id="mb-clear" hidden>
+        <Icon name="Trash2" size={16} />
+        {s.clearHistory}
+      </button>
+    </div>
+    <div class="stats mb-stats">
+      <div class="stat"><span class="stat-value" id="mb-total">0</span><span class="stat-label">{s.statTotal}</span></div>
+      {
+        OUTCOMES.map((o) => (
+          <div class="stat" data-outcome={o}>
+            <span class="stat-value">
+              <span data-count>0</span>
+              <small data-share>0%</small>
+            </span>
+            <span class="stat-label">{outcomes[o].name}</span>
+          </div>
+        ))
+      }
+    </div>
+    <div class="mb-bar" id="mb-bar" aria-hidden="true">
+      {OUTCOMES.map((o) => <span data-outcome={o}></span>)}
+    </div>
+    <p class="hint mb-theory">{s.theory}</p>
+    <ol class="mb-list" id="mb-list" hidden></ol>
+    <p class="hint" id="mb-empty">{s.historyEmpty}</p>
+  </section>
+
+  <p class="hint mb-note">
+    <Icon name="Info" size={16} class="mb-note-icon" />
+    <span>{s.note}</span>
+  </p>
+</div>
+
+<script>
+  import { $, $$, debounce, loadPref, savePref } from '../../lib/client';
+  import { readI18n } from '../../i18n/client';
+  import { formatNumber, t } from '../../i18n/format';
+  import { LOCALE_INFO } from '../../i18n/locales';
+  import type { Strings } from './i18n';
+  import {
+    addRecord,
+    advanceStreak,
+    alignPlan,
+    cleanQuestion,
+    faceAtFlip,
+    flipFor,
+    historyStats,
+    impactsOf,
+    initialShake,
+    motionForce,
+    normalizePrefs,
+    OUTCOMES,
+    outcomeOf,
+    planToss,
+    poseAt,
+    restingPose,
+    shakeStep,
+    STREAK_TARGET,
+    throwBlocks,
+    tossTimeline,
+    type Face,
+    type Mode,
+    type Outcome,
+    type Pose,
+    type Prefs,
+    type ThrowRecord,
+    type TossPlan,
+  } from './logic';
+
+  const PREF_KEY = 'moon-blocks';
+  const PICKUP_MS = 200;
+
+  const root = $('[data-tool="moon-blocks"]');
+  const { locale, s } = readI18n<Strings['client']>(root);
+  const intl = LOCALE_INFO[locale].intl;
+  const timeFormat = new Intl.DateTimeFormat(intl, { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+
+  const questionInput = $<HTMLInputElement>('#mb-question', root);
+  const modeRadios = $$<HTMLInputElement>('input[name="mb-mode"]', root);
+  const soundBtn = $<HTMLButtonElement>('#mb-sound', root);
+  const stage = $('#mb-stage', root);
+  const askedEl = $('#mb-asked', root);
+  const streakEl = $('#mb-streak', root);
+  const streakSlots = $$<HTMLLIElement>('li', streakEl);
+  const scene = $('#mb-scene', root);
+  const verdict = $('#mb-verdict', root);
+  const verdictName = $('#mb-verdict-name', root);
+  const verdictShort = $('#mb-verdict-short', root);
+  const resultEl = $('#mb-result', root);
+  const resultName = $('#mb-result-name', root);
+  const resultDetail = $('#mb-result-detail', root);
+  const streakMsg = $('#mb-streak-msg', root);
+  const throwBtn = $<HTMLButtonElement>('#mb-throw', root);
+  const throwLabel = throwBtn.textContent ?? '';
+  const shakeBtn = $<HTMLButtonElement>('#mb-shake', root);
+  const shakeLabel = $('#mb-shake-label', root);
+  const notice = $('#mb-notice', root);
+  const legendItems = $$<HTMLLIElement>('.mb-legend-list > li', root);
+  const totalEl = $('#mb-total', root);
+  const statEls = new Map($$<HTMLElement>('.mb-stats [data-outcome]', root).map((el) => [el.dataset.outcome as Outcome, el]));
+  const barEls = new Map($$<HTMLElement>('#mb-bar [data-outcome]', root).map((el) => [el.dataset.outcome as Outcome, el]));
+  const list = $('#mb-list', root);
+  const emptyEl = $('#mb-empty', root);
+  const clearBtn = $<HTMLButtonElement>('#mb-clear', root);
+
+  const blocksLayer = $<SVGGElement>('#mb-blocks', root);
+  const blocks = $$<SVGGElement>('.mb-blk', blocksLayer).map((g, i) => ({
+    g,
+    side: $<SVGUseElement>('.mb-side', g),
+    top: $<SVGGElement>('.mb-top', g),
+    flat: $<SVGUseElement>('.mb-face-flat', g),
+    round: $<SVGUseElement>('.mb-face-round', g),
+    shadow: $$<SVGEllipseElement>('#mb-shadows ellipse', root)[i],
+    label: $$<SVGTextElement>('#mb-labels text', root)[i],
+  }));
+
+  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+  let prefs: Prefs = normalizePrefs(loadPref<unknown>(PREF_KEY, null));
+  let streak = 0;
+  let busy = false;
+  /** What each block shows now. Before the first throw the pair rests stacked, flat sides together. */
+  let poses: Pose[] = [
+    { x: 180, y: 170, h: 9, spin: -4, flip: flipFor('round') },
+    { x: 180, y: 170, h: 0, spin: -4, flip: flipFor('flat') },
+  ];
+
+  function save() {
+    savePref(PREF_KEY, prefs);
+  }
+
+  /* ---------- Drawing ---------- */
+  const fixed = (n: number) => Math.round(n * 100) / 100;
+
+  /** Nearer the viewer (larger y) looks bigger; so does a block high in the air. */
+  function scaleOf(p: Pose): number {
+    return (0.9 + ((p.y - 140) / 96) * 0.18) * (1 + p.h / 900);
+  }
+
+  function draw(i: number, p: Pose) {
+    const b = blocks[i];
+    const face = faceAtFlip(p.flip);
+    const c = Math.abs(Math.cos(p.flip));
+    const k = scaleOf(p);
+    const depth = (face === 'flat' ? 7 : 4.5) * k * c;
+    const top = `translate(${fixed(p.x)} ${fixed(p.y - p.h)}) rotate(${fixed(p.spin)}) scale(${fixed(k)} ${fixed(k * Math.max(0.07, c))})`;
+    const side = `translate(${fixed(p.x)} ${fixed(p.y - p.h + depth)}) rotate(${fixed(p.spin)}) scale(${fixed(k)} ${fixed(k * Math.max(0.32, c))})`;
+    b.top.setAttribute('transform', top);
+    b.side.setAttribute('transform', side);
+    b.flat.setAttribute('visibility', face === 'flat' ? 'visible' : 'hidden');
+    b.round.setAttribute('visibility', face === 'round' ? 'visible' : 'hidden');
+    const lift = Math.min(1, p.h / 220);
+    b.shadow.setAttribute('cx', String(fixed(p.x + 3)));
+    b.shadow.setAttribute('cy', String(fixed(p.y + 12 * k)));
+    b.shadow.setAttribute('rx', String(fixed(50 * k * (1 - lift * 0.45))));
+    b.shadow.setAttribute('ry', String(fixed(11 * k * (1 - lift * 0.45))));
+    b.shadow.setAttribute('opacity', String(fixed(0.3 * (1 - lift * 0.75))));
+  }
+
+  function drawAll() {
+    poses.forEach((p, i) => draw(i, p));
+    // Farther blocks first; on a tie the higher one (the top of the pair) goes in front.
+    const order = poses.map((p, i) => ({ i, key: p.y + p.h * 0.01 })).sort((a, b) => a.key - b.key);
+    const current = Array.from(blocksLayer.children);
+    if (order.some((o, n) => current[n] !== blocks[o.i].g)) for (const o of order) blocksLayer.append(blocks[o.i].g);
+  }
+
+  function showLabels(on: boolean) {
+    poses.forEach((p, i) => {
+      const label = blocks[i].label;
+      if (!on) return label.setAttribute('visibility', 'hidden');
+      label.textContent = s.faceUp[faceAtFlip(p.flip)];
+      label.setAttribute('x', String(fixed(p.x)));
+      label.setAttribute('y', String(fixed(Math.min(244, p.y + 44 * scaleOf(p)))));
+      label.setAttribute('visibility', 'visible');
+    });
+  }
+
+  /* ---------- Sound: a short wooden clack, synthesized ---------- */
+  type AudioCtor = typeof AudioContext;
+  const AudioCtx: AudioCtor | undefined = window.AudioContext ?? (window as unknown as { webkitAudioContext?: AudioCtor }).webkitAudioContext;
+  let audio: AudioContext | null = null;
+  /** Every clack goes through this, so muting also silences clacks already scheduled. */
+  let master: GainNode | null = null;
+  let noise: AudioBuffer | null = null;
+
+  /** Call only from a user gesture (click, key): browsers start audio only then. */
+  function unlockAudio() {
+    if (!prefs.sound || !AudioCtx) return;
+    try {
+      if (!audio) {
+        audio = new AudioCtx();
+        master = audio.createGain();
+        master.connect(audio.destination);
+      }
+      if (audio.state === 'suspended') void audio.resume();
+    } catch {
+      audio = null;
+      master = null;
+    }
+  }
+
+  /** `at` is in AudioContext time. Sounds scheduled while the context is still resuming play once it runs. */
+  function clack(at: number, strength: number) {
+    if (!audio || !master || !prefs.sound || audio.state === 'closed') return;
+    const ctx = audio;
+    if (!noise) {
+      noise = ctx.createBuffer(1, Math.round(ctx.sampleRate * 0.08), ctx.sampleRate);
+      const data = noise.getChannelData(0);
+      for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (ctx.sampleRate * 0.012));
+    }
+    const out = ctx.createGain();
+    out.gain.value = 0.55 * strength;
+    out.connect(master);
+
+    // The knock: a filtered noise burst.
+    const src = ctx.createBufferSource();
+    src.buffer = noise;
+    const band = ctx.createBiquadFilter();
+    band.type = 'bandpass';
+    band.frequency.value = 1700 + Math.random() * 700;
+    band.Q.value = 2.2;
+    src.connect(band).connect(out);
+    src.start(at);
+
+    // The body: two damped wood modes.
+    for (const [freq, level, decay] of [
+      [620 + Math.random() * 90, 0.5, 0.07],
+      [1580 + Math.random() * 160, 0.25, 0.04],
+    ]) {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq * 1.04, at);
+      osc.frequency.exponentialRampToValueAtTime(freq, at + 0.03);
+      gain.gain.setValueAtTime(0.0001, at);
+      gain.gain.exponentialRampToValueAtTime(level, at + 0.003);
+      gain.gain.exponentialRampToValueAtTime(0.0001, at + decay);
+      osc.connect(gain).connect(out);
+      osc.start(at);
+      osc.stop(at + decay + 0.02);
+    }
+  }
+
+  function scheduleClacks(plans: TossPlan[], delayMs: number) {
+    if (!audio) return;
+    const now = audio.currentTime;
+    for (const plan of plans) {
+      for (const hit of impactsOf(plan)) clack(now + (delayMs + hit.at) / 1000, hit.strength);
+    }
+  }
+
+  function renderSound() {
+    soundBtn.setAttribute('aria-pressed', String(prefs.sound));
+    soundBtn.title = prefs.sound ? s.soundOn : s.soundOff;
+    soundBtn.classList.toggle('is-muted', !prefs.sound);
+    if (master && audio) master.gain.setValueAtTime(prefs.sound ? 1 : 0, audio.currentTime);
+  }
+
+  /* ---------- Mode, question, 三聖筊 ---------- */
+  function renderQuestion() {
+    const q = cleanQuestion(questionInput.value);
+    askedEl.textContent = q ? t(s.asked, { q }) : '';
+    askedEl.hidden = q === '';
+  }
+
+  function renderStreak() {
+    const on = prefs.mode === 'triple';
+    stage.dataset.mode = prefs.mode;
+    streakEl.hidden = !on;
+    streakSlots.forEach((li, i) => li.classList.toggle('is-on', on && i < streak));
+    streakEl.classList.toggle('is-done', on && streak >= STREAK_TARGET);
+  }
+
+  function showIdle() {
+    stage.removeAttribute('data-outcome');
+    verdict.classList.remove('is-hidden');
+    verdictName.hidden = true;
+    verdictShort.textContent = prefs.mode === 'triple' ? s.idleTriple : s.idle;
+    resultName.textContent = '';
+    resultEl.classList.remove('is-stale');
+    resultDetail.hidden = true;
+    streakMsg.hidden = true;
+    for (const li of legendItems) li.classList.remove('is-current');
+  }
+
+  function setMode(mode: Mode) {
+    if (busy) return;
+    prefs.mode = mode;
+    for (const r of modeRadios) r.checked = r.value === mode;
+    streak = 0;
+    save();
+    renderStreak();
+    showIdle();
+    showLabels(false);
+  }
+
+  /* ---------- History ---------- */
+  function renderHistory() {
+    const stats = historyStats(prefs.history);
+    totalEl.textContent = formatNumber(stats.total, 0, locale);
+    for (const o of OUTCOMES) {
+      const el = statEls.get(o)!;
+      const pct = `${formatNumber(stats.shares[o] * 100, 1, locale)}%`;
+      el.querySelector('[data-count]')!.textContent = t(s.times, { n: formatNumber(stats.counts[o], 0, locale) });
+      el.querySelector('[data-share]')!.textContent = pct;
+      barEls.get(o)!.style.flexGrow = String(stats.counts[o]);
+    }
+    root.querySelector<HTMLElement>('#mb-bar')!.classList.toggle('is-empty', stats.total === 0);
+
+    const first = prefs.history.length;
+    list.replaceChildren(
+      ...prefs.history
+        .slice()
+        .reverse()
+        .map((r, k) => historyItem(r, first - k)),
+    );
+    list.hidden = prefs.history.length === 0;
+    emptyEl.hidden = prefs.history.length > 0;
+    clearBtn.hidden = prefs.history.length === 0;
+  }
+
+  function span(className: string, text: string): HTMLSpanElement {
+    const el = document.createElement('span');
+    el.className = className;
+    el.textContent = text;
+    return el;
+  }
+
+  function historyItem(r: ThrowRecord, n: number): HTMLLIElement {
+    const li = document.createElement('li');
+    li.dataset.outcome = r.outcome;
+    const head = document.createElement('div');
+    head.className = 'mb-h-head';
+    head.append(span('mb-h-n', t(s.nth, { n: formatNumber(n, 0, locale) })), span('mb-chip', s.outcomes[r.outcome].name));
+    if (r.mode === 'triple' && r.streak !== undefined) head.append(span('mb-h-tag', t(s.streakTag, { n: r.streak, target: STREAK_TARGET })));
+    head.append(span('mb-h-time', timeFormat.format(r.at)));
+    const faces = s.outcomes[r.outcome].faces;
+    li.append(head, span('mb-h-sub', r.q ? `${faces}・${r.q}` : faces));
+    return li;
+  }
+
+  /* ---------- Throwing ---------- */
+  function showNotice(text: string) {
+    notice.textContent = text;
+    notice.hidden = text === '';
+  }
+
+  function reveal(faces: [Face, Face]) {
+    const outcome = outcomeOf(...faces);
+    const text = s.outcomes[outcome];
+    stage.dataset.outcome = outcome;
+    verdictName.textContent = text.name;
+    verdictName.hidden = false;
+    verdictShort.textContent = text.short;
+    verdict.classList.remove('is-hidden');
+    resultName.textContent = `${text.name}，${text.short}。`;
+    resultEl.classList.remove('is-stale');
+    resultDetail.textContent = text.detail;
+    resultDetail.hidden = false;
+    for (const li of legendItems) li.classList.toggle('is-current', li.dataset.outcome === outcome);
+    showLabels(true);
+
+    const record: ThrowRecord = { faces, outcome, mode: prefs.mode, at: Date.now() };
+    const q = cleanQuestion(questionInput.value);
+    if (q) record.q = q;
+
+    if (prefs.mode === 'triple') {
+      const step = advanceStreak(streak, outcome);
+      streak = step.count;
+      record.streak = step.count;
+      let msg: string;
+      if (step.done) msg = s.streakDone;
+      else if (outcome === 'sheng') msg = t(s.streakProgress, { n: step.count, left: STREAK_TARGET - step.count });
+      else msg = t(step.broken ? s.streakBroken : s.streakMiss, { name: text.name });
+      streakMsg.textContent = msg;
+      streakMsg.hidden = false;
+      streakMsg.dataset.state = step.done ? 'done' : step.broken || outcome !== 'sheng' ? 'reset' : 'progress';
+      renderStreak();
+      if (step.broken) {
+        streakEl.classList.remove('is-broken');
+        void streakEl.offsetWidth;
+        streakEl.classList.add('is-broken');
+      }
+    } else {
+      streakMsg.hidden = true;
+    }
+
+    prefs.history = addRecord(prefs.history, record);
+    save();
+    renderHistory();
+    for (const el of [resultEl, verdict]) {
+      el.classList.remove('is-new');
+      void el.offsetWidth;
+      el.classList.add('is-new');
+    }
+  }
+
+  function setBusy(on: boolean) {
+    busy = on;
+    throwBtn.textContent = on ? s.tossingBtn : throwLabel;
+    throwBtn.setAttribute('aria-disabled', String(on));
+    throwBtn.classList.toggle('is-busy', on);
+    for (const r of modeRadios) r.disabled = on;
+  }
+
+  function throwNow(fromGesture: boolean) {
+    if (busy) return;
+    if (fromGesture) unlockAudio();
+    showNotice('');
+    const faces = throwBlocks();
+    // A finished 三聖筊 run shows its three marks until the next throw starts a new one.
+    if (prefs.mode === 'triple' && streak >= STREAK_TARGET) {
+      streak = 0;
+      renderStreak();
+    }
+    const plans = faces.map((face, i) => {
+      const now = poses[i];
+      return alignPlan(planToss(face, faceAtFlip(now.flip), i === 0 ? -1 : 1), now);
+    });
+    showLabels(false);
+
+    if (reducedMotion.matches) {
+      poses = plans.map(restingPose);
+      drawAll();
+      if (audio) clack(audio.currentTime + 0.01, 0.8);
+      reveal(faces);
+      return;
+    }
+
+    setBusy(true);
+    stage.removeAttribute('data-outcome');
+    verdict.classList.add('is-hidden');
+    // Keep the old text's space so nothing below jumps while the blocks are in the air.
+    resultEl.classList.add('is-stale');
+    for (const li of legendItems) li.classList.remove('is-current');
+
+    const from = poses.map((p) => ({ ...p }));
+    const starts = plans.map((plan) => poseAt(plan, 0));
+    const { reveal: revealAt, end: endAt } = tossTimeline(plans, PICKUP_MS);
+    scheduleClacks(plans, PICKUP_MS);
+
+    const t0 = performance.now();
+    let revealed = false;
+    const frame = (now: number) => {
+      const ms = now - t0;
+      if (ms < PICKUP_MS) {
+        // Gather the blocks back into the hands.
+        const u = ms / PICKUP_MS;
+        const e = u * u * (3 - 2 * u);
+        poses = from.map((p, i) => {
+          const q = starts[i];
+          return { x: p.x + (q.x - p.x) * e, y: p.y + (q.y - p.y) * e, h: p.h + (q.h - p.h) * e, spin: p.spin + (q.spin - p.spin) * e, flip: p.flip + (q.flip - p.flip) * e };
+        });
+      } else {
+        poses = plans.map((plan) => poseAt(plan, ms - PICKUP_MS));
+      }
+      drawAll();
+      if (!revealed && ms >= revealAt) {
+        revealed = true;
+        reveal(faces);
+      }
+      if (revealed) showLabels(true);
+      if (ms < endAt) return void requestAnimationFrame(frame);
+      poses = plans.map(restingPose);
+      drawAll();
+      showLabels(true);
+      setBusy(false);
+    };
+    requestAnimationFrame(frame);
+  }
+
+  /* ---------- Shake to throw ---------- */
+  type MotionCtor = typeof DeviceMotionEvent & { requestPermission?: () => Promise<'granted' | 'denied'> };
+  const Motion = (window as unknown as { DeviceMotionEvent?: MotionCtor }).DeviceMotionEvent;
+  let shakeOn = false;
+  let shakeState = initialShake();
+  let gotMotion = false;
+  let sensorTimer: number | undefined;
+
+  function onMotion(e: DeviceMotionEvent) {
+    let force: number | null = null;
+    if (e.acceleration) force = motionForce(e.acceleration, false);
+    if (force === null && e.accelerationIncludingGravity) force = motionForce(e.accelerationIncludingGravity, true);
+    if (force === null) return;
+    gotMotion = true;
+    const step = shakeStep(shakeState, force, e.timeStamp || performance.now());
+    shakeState = step.state;
+    if (step.shaken && !busy) throwNow(false);
+  }
+
+  function setShake(on: boolean) {
+    shakeOn = on;
+    shakeBtn.setAttribute('aria-pressed', String(on));
+    shakeLabel.textContent = on ? s.shakeOn : s.shakeOff;
+    window.clearTimeout(sensorTimer);
+    if (on) {
+      shakeState = initialShake();
+      gotMotion = false;
+      window.addEventListener('devicemotion', onMotion);
+      showNotice(s.shakeReady);
+      sensorTimer = window.setTimeout(() => {
+        if (shakeOn && !gotMotion) {
+          setShake(false);
+          showNotice(s.shakeNoSensor);
+        }
+      }, 2500);
+    } else {
+      window.removeEventListener('devicemotion', onMotion);
+    }
+  }
+
+  if (Motion && window.matchMedia('(pointer: coarse)').matches) {
+    shakeBtn.hidden = false;
+    shakeBtn.addEventListener('click', async () => {
+      unlockAudio();
+      if (shakeOn) {
+        setShake(false);
+        showNotice('');
+        return;
+      }
+      if (typeof Motion.requestPermission === 'function') {
+        try {
+          if ((await Motion.requestPermission()) !== 'granted') return showNotice(s.shakeDenied);
+        } catch {
+          return showNotice(s.shakeDenied);
+        }
+      }
+      setShake(true);
+    });
+  }
+
+  /* ---------- Keyboard: Space / Enter ---------- */
+  let stageVisible = true;
+  if ('IntersectionObserver' in window) {
+    new IntersectionObserver((entries) => {
+      for (const e of entries) stageVisible = e.isIntersecting;
+    }).observe(stage);
+  }
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== ' ' && e.key !== 'Enter') return;
+    if (e.repeat || e.isComposing || e.metaKey || e.ctrlKey || e.altKey) return;
+    const target = e.target as HTMLElement | null;
+    if (target === questionInput) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        throwNow(true);
+      }
+      return;
+    }
+    // Buttons, links and fields keep their own Space / Enter.
+    if (target && target !== document.body && target.closest('input, textarea, select, button, a, summary, [contenteditable], [role="dialog"]')) return;
+    if (!stageVisible) return;
+    e.preventDefault();
+    throwNow(true);
+  });
+
+  /* ---------- Events ---------- */
+  throwBtn.addEventListener('click', () => throwNow(true));
+  scene.addEventListener('click', () => throwNow(true));
+
+  for (const r of modeRadios) r.addEventListener('change', () => r.checked && setMode(r.value as Mode));
+
+  soundBtn.addEventListener('click', () => {
+    prefs.sound = !prefs.sound;
+    save();
+    renderSound();
+    if (prefs.sound) unlockAudio();
+  });
+
+  const saveQuestion = debounce(() => {
+    prefs.question = cleanQuestion(questionInput.value);
+    save();
+  }, 300);
+  questionInput.addEventListener('input', () => {
+    renderQuestion();
+    saveQuestion();
+  });
+
+  clearBtn.addEventListener('click', () => {
+    prefs.history = [];
+    save();
+    renderHistory();
+  });
+
+  /* ---------- Start ---------- */
+  questionInput.value = prefs.question;
+  for (const r of modeRadios) r.checked = r.value === prefs.mode;
+  renderSound();
+  renderQuestion();
+  renderStreak();
+  showIdle();
+  renderHistory();
+  drawAll();
+</script>
+
+<style>
+  .mb-controls {
+    gap: 10px;
+  }
+  .mb-sound {
+    gap: 6px;
+  }
+  .mb-sound :global(.mb-sound-off),
+  .mb-sound.is-muted :global(.mb-sound-on) {
+    display: none;
+  }
+  .mb-sound.is-muted :global(.mb-sound-off) {
+    display: inline;
+  }
+  .mb-sound.is-muted {
+    color: var(--muted);
+  }
+
+  /* ---------- Stage ---------- */
+  .mb-stage {
+    display: grid;
+    gap: 10px;
+    padding: 14px 12px 16px;
+    border-radius: var(--radius);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow-sm);
+    text-align: center;
+  }
+  .mb-asked {
+    margin: 0;
+    padding: 0 6px;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-2);
+    overflow-wrap: anywhere;
+  }
+  .mb-scene {
+    position: relative;
+    width: 100%;
+    max-width: 560px;
+    margin: 0 auto;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .mb-svg {
+    display: block;
+    width: 100%;
+    height: auto;
+    border-radius: var(--radius-sm);
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  /* The result sits on the empty wall above the floor (96 of 250 units). */
+  .mb-verdict {
+    position: absolute;
+    inset: 0 0 auto;
+    height: 38.4%;
+    display: grid;
+    place-content: center;
+    gap: 2px;
+    padding: 0 12px;
+    pointer-events: none;
+    transition: opacity 0.15s;
+  }
+  .mb-verdict.is-hidden {
+    opacity: 0;
+  }
+  .mb-verdict-name {
+    font-family: var(--display);
+    font-size: clamp(26px, 7.5vw, 40px);
+    font-weight: 800;
+    line-height: 1.15;
+    letter-spacing: 0.06em;
+    color: var(--text-2);
+  }
+  .mb-verdict-short {
+    font-size: clamp(15px, 3.8vw, 18px);
+    font-weight: 600;
+    color: var(--text-2);
+  }
+  [data-outcome='sheng'] .mb-verdict-name {
+    color: var(--accent);
+  }
+  [data-outcome='xiao'] .mb-verdict-name {
+    color: var(--warning);
+  }
+  [data-outcome='yin'] .mb-verdict-name {
+    color: #4b5a73;
+  }
+  .mb-tiles path {
+    fill: none;
+    stroke: #dccbb8;
+    stroke-width: 1;
+    opacity: 0.7;
+  }
+  .mb-shadow {
+    fill: #5b3a22;
+  }
+  .mb-side,
+  .mb-mini .mb-side {
+    fill: #7a1a12;
+  }
+  .mb-label {
+    font: 600 13px var(--font);
+    fill: var(--text-2);
+    stroke: #f4ebe1;
+    stroke-width: 4px;
+    stroke-linejoin: round;
+    paint-order: stroke;
+  }
+
+  /* ---------- 三聖筊 progress ---------- */
+  .mb-streak {
+    display: flex;
+    justify-content: center;
+    gap: 14px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .mb-streak li {
+    display: grid;
+    place-items: center;
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    border: 2px dashed var(--border-strong);
+    color: var(--muted);
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    transition: background 0.2s, border-color 0.2s, color 0.2s;
+  }
+  .mb-streak :global(.mb-streak-check) {
+    display: none;
+  }
+  .mb-streak li.is-on {
+    border: 2px solid var(--accent);
+    background: var(--accent);
+    color: var(--on-accent);
+  }
+  .mb-streak li.is-on :global(.mb-streak-check) {
+    display: block;
+  }
+  .mb-streak li.is-on .mb-streak-n {
+    display: none;
+  }
+  .mb-streak.is-done li {
+    border-color: var(--success);
+    background: var(--success);
+  }
+  .mb-streak.is-broken {
+    animation: mb-shake 0.4s ease;
+  }
+  @keyframes mb-shake {
+    20%,
+    60% {
+      transform: translateX(-5px);
+    }
+    40%,
+    80% {
+      transform: translateX(5px);
+    }
+  }
+
+  /* ---------- Result ---------- */
+  .mb-result {
+    display: grid;
+    gap: 6px;
+    padding: 0 6px;
+    transition: opacity 0.15s;
+  }
+  .mb-result.is-stale {
+    opacity: 0;
+  }
+  .mb-result p {
+    margin: 0;
+  }
+  .mb-result-detail {
+    font-size: 15px;
+    color: var(--text-2);
+    max-width: 34em;
+    margin-inline: auto !important;
+  }
+  .mb-streak-msg {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text-2);
+  }
+  .mb-streak-msg[data-state='done'] {
+    color: var(--success);
+  }
+  .mb-result.is-new,
+  .mb-verdict.is-new {
+    animation: mb-pop 0.35s ease-out;
+  }
+  @keyframes mb-pop {
+    from {
+      opacity: 0;
+      transform: translateY(4px);
+    }
+  }
+
+  /* ---------- Actions ---------- */
+  .mb-actions {
+    display: grid;
+    gap: 10px;
+  }
+  .mb-throw {
+    min-height: 56px;
+    font-size: 20px;
+    letter-spacing: 0.3em;
+    text-indent: 0.3em;
+  }
+  .mb-throw.is-busy {
+    opacity: 0.7;
+    cursor: progress;
+  }
+  .mb-shake[aria-pressed='true'] {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: var(--accent-soft);
+  }
+  @media (min-width: 640px) {
+    .mb-actions {
+      grid-template-columns: minmax(0, 1fr) auto;
+    }
+    .mb-actions:has(.mb-shake[hidden]) {
+      grid-template-columns: minmax(0, 1fr);
+    }
+    .mb-throw {
+      justify-self: center;
+      width: min(100%, 320px);
+    }
+  }
+  #mb-notice {
+    margin: 0;
+  }
+  .mb-keys {
+    margin: -6px 0 0;
+    text-align: center;
+  }
+  @media (pointer: coarse) {
+    .mb-keys {
+      display: none;
+    }
+  }
+
+  /* ---------- Legend ---------- */
+  .mb-h {
+    margin: 0;
+    font-size: 16px;
+  }
+  .mb-legend {
+    display: grid;
+    gap: 10px;
+  }
+  .mb-legend-list {
+    display: grid;
+    gap: 8px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  @media (min-width: 640px) {
+    .mb-legend-list {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+  }
+  .mb-legend-list li {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px 8px 6px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    transition: border-color 0.2s, background 0.2s;
+  }
+  @media (min-width: 640px) {
+    .mb-legend-list li {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 4px;
+      padding: 10px 12px;
+      text-align: center;
+    }
+  }
+  .mb-legend-list li.is-current {
+    border-color: color-mix(in oklab, var(--accent) 45%, transparent);
+    background: var(--accent-soft);
+  }
+  .mb-mini {
+    flex: none;
+    width: 116px;
+    height: auto;
+  }
+  @media (min-width: 640px) {
+    .mb-mini {
+      width: 100%;
+      max-width: 150px;
+      margin: 0 auto;
+    }
+  }
+  .mb-legend-text p {
+    margin: 0;
+  }
+  .mb-legend-name {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 2px 8px;
+  }
+  @media (min-width: 640px) {
+    .mb-legend-name {
+      justify-content: center;
+    }
+  }
+  .mb-legend-name strong {
+    font-size: 17px;
+  }
+  .mb-legend-name span {
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .mb-legend-short {
+    font-size: 14px;
+    color: var(--text-2);
+  }
+
+  /* ---------- History ---------- */
+  .mb-history {
+    display: grid;
+    gap: 10px;
+  }
+  .mb-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  @media (min-width: 640px) {
+    .mb-stats {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+  }
+  .mb-stats .stat-value {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0 8px;
+  }
+  .mb-stats small {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--muted);
+  }
+  .mb-bar {
+    display: flex;
+    height: 10px;
+    border-radius: 999px;
+    overflow: hidden;
+    background: var(--surface-2);
+  }
+  .mb-bar span {
+    flex: 0 1 0;
+    min-width: 0;
+  }
+  .mb-bar.is-empty span {
+    flex-grow: 0 !important;
+  }
+  .mb-bar [data-outcome='sheng'] {
+    background: var(--accent);
+  }
+  .mb-bar [data-outcome='xiao'] {
+    background: #e0a43a;
+  }
+  .mb-bar [data-outcome='yin'] {
+    background: #6b7a93;
+  }
+  .mb-theory {
+    margin: -4px 0 0;
+  }
+  .mb-list {
+    display: grid;
+    gap: 6px;
+    max-height: 360px;
+    margin: 0;
+    padding: 0;
+    overflow-y: auto;
+    list-style: none;
+  }
+  .mb-list :global(li) {
+    display: grid;
+    gap: 2px;
+    padding: 8px 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+  }
+  .mb-list :global(.mb-h-head) {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 10px;
+    font-size: 14px;
+  }
+  .mb-list :global(.mb-h-n) {
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+  .mb-list :global(.mb-chip) {
+    padding: 1px 8px;
+    border-radius: 999px;
+    font-weight: 700;
+    color: #fff;
+    background: var(--accent);
+  }
+  .mb-list :global(li[data-outcome='xiao'] .mb-chip) {
+    background: #c27f12;
+  }
+  .mb-list :global(li[data-outcome='yin'] .mb-chip) {
+    background: #5b6a83;
+  }
+  .mb-list :global(.mb-h-tag) {
+    padding: 0 6px;
+    border: 1px solid var(--border-strong);
+    border-radius: 6px;
+    font-size: 12px;
+    color: var(--text-2);
+  }
+  .mb-list :global(.mb-h-time) {
+    margin-left: auto;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+  .mb-list :global(.mb-h-sub) {
+    font-size: 14px;
+    color: var(--text-2);
+    overflow-wrap: anywhere;
+  }
+  .mb-note {
+    display: flex;
+    gap: 8px;
+    margin: 0;
+    padding: 10px 12px;
+    border-radius: var(--radius-sm);
+    background: var(--surface-2);
+    line-height: 1.6;
+  }
+  .mb-note :global(.mb-note-icon) {
+    flex: none;
+    margin-top: 3px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .mb-result.is-new,
+    .mb-verdict.is-new,
+    .mb-streak.is-broken {
+      animation: none;
+    }
+  }
+</style>
