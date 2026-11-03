@@ -1,0 +1,1121 @@
+---
+import { i18nAttrs, pickStrings, type ToolProps } from '../../i18n/tool';
+import { LOCALE_INFO } from '../../i18n/locales';
+import { t } from '../../i18n/format';
+import Icon from '../../components/Icon.astro';
+import { CURRENCIES, DEFAULTS, PERIODS, PLAN_PRESETS, RECURRENCES, REWARD_IDS, type Settings } from './logic';
+import i18n from './i18n';
+
+type Props = ToolProps;
+const { locale = 'zh-TW' } = Astro.props;
+const s = pickStrings(i18n, locale);
+const base = DEFAULTS[locale];
+// Numbers come from logic.ts, the sample role names from i18n.ts.
+const defaults: Settings = { ...base, groups: base.groups.map((g, i) => ({ ...g, label: s.sampleLabels[i] ?? '' })) };
+const currencyNames = new Intl.DisplayNames(LOCALE_INFO[locale].intl, { type: 'currency' });
+---
+
+<div class="tool" data-tool="meeting-cost" data-defaults={JSON.stringify(defaults)} {...i18nAttrs(locale, s.client)}>
+  <section class="mc-stage" id="mc-stage" data-phase="idle">
+    <p class="mc-status" id="mc-status" aria-live="polite">{s.client.status.idle}</p>
+    <div class="mc-amount" id="mc-amount" aria-label={s.amountAria}>
+      <span id="mc-int">0</span><span class="mc-frac" id="mc-frac"></span>
+    </div>
+    <div class="mc-bar" id="mc-bar" role="progressbar" aria-label={s.progressAria} aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+      <span class="mc-fill" id="mc-fill"></span>
+    </div>
+    <div class="mc-meta">
+      <span id="mc-elapsed"></span>
+      <span id="mc-left"></span>
+    </div>
+    <p class="mc-headline" id="mc-headline"></p>
+    <p class="mc-rate" id="mc-rate"></p>
+    <div class="mc-controls">
+      <button class="btn primary mc-toggle" type="button" id="mc-toggle">
+        <span class="mc-ico" data-ico="play"><Icon name="Play" size={18} /></span>
+        <span class="mc-ico" data-ico="pause" hidden><Icon name="Pause" size={18} /></span>
+        <span id="mc-toggle-label">{s.client.start}</span>
+      </button>
+      <button class="btn" type="button" id="mc-reset" disabled>
+        <Icon name="RotateCcw" size={18} />
+        <span>{s.reset}</span>
+      </button>
+    </div>
+    <button class="btn small ghost mc-fs" type="button" id="mc-fullscreen">{s.client.fullscreen}</button>
+  </section>
+
+  <div class="stats mc-stats">
+    <div class="stat"><span class="stat-value" id="mc-minute">–</span><span class="stat-label">{s.statMinute}</span></div>
+    <div class="stat"><span class="stat-value" id="mc-hour">–</span><span class="stat-label">{s.statHour}</span></div>
+    <div class="stat"><span class="stat-value" id="mc-people">–</span><span class="stat-label">{s.statPeople}</span></div>
+    <div class="stat"><span class="stat-value" id="mc-average">–</span><span class="stat-label">{s.statAverage}</span></div>
+  </div>
+
+  <details class="mc-settings" open>
+    <summary>{s.settings}</summary>
+    <div class="mc-settings-body">
+      <div class="seg" role="radiogroup" aria-label={s.modeAria}>
+        {
+          (['quick', 'detail'] as const).map((m) => (
+            <label>
+              <input type="radio" name="mc-mode" value={m} checked={m === defaults.mode} />
+              <span>{s.modes[m]}</span>
+            </label>
+          ))
+        }
+      </div>
+
+      <div class="mc-quick" id="mc-quick">
+        <div class="seg" role="radiogroup" aria-label={s.periodAria}>
+          {
+            PERIODS.map((p) => (
+              <label>
+                <input type="radio" name="mc-q-period" value={p} checked={p === defaults.quick.period} />
+                <span>{s.periods[p]}</span>
+              </label>
+            ))
+          }
+        </div>
+        <div class="grid-2">
+          <div class="field">
+            <label for="mc-q-count">{s.quickCount}</label>
+            <input id="mc-q-count" type="number" inputmode="numeric" min="0" step="1" value={defaults.quick.count} />
+          </div>
+          <div class="field">
+            <label for="mc-q-pay" id="mc-q-pay-label" data-labels={JSON.stringify(s.averagePay)}>{s.averagePay[defaults.quick.period]}</label>
+            <input id="mc-q-pay" type="number" inputmode="decimal" min="0" step="any" value={defaults.quick.pay} />
+          </div>
+        </div>
+        <p class="mc-out" id="mc-q-out"></p>
+      </div>
+
+      <div class="mc-detail" id="mc-detail" hidden>
+        <div class="mc-groups" id="mc-groups"></div>
+        <div class="row">
+          <button class="btn small" type="button" id="mc-add"><Icon name="Plus" size={18} /><span>{s.addRow}</span></button>
+        </div>
+      </div>
+
+      <template id="mc-group-tpl">
+        <div class="mc-group">
+          <label class="mc-mini mc-g-label-wrap">
+            <span>{s.rowLabelAria}</span>
+            <input class="mc-g-label" type="text" maxlength="40" autocomplete="off" placeholder={s.rowLabelPlaceholder} />
+          </label>
+          <label class="mc-mini mc-g-period-wrap">
+            <span>{s.rowPeriod}</span>
+            <select class="mc-g-period">{PERIODS.map((p) => <option value={p}>{s.periods[p]}</option>)}</select>
+          </label>
+          <label class="mc-mini mc-g-count-wrap">
+            <span>{s.rowCount}</span>
+            <input class="mc-g-count" type="number" inputmode="numeric" min="0" step="1" />
+          </label>
+          <label class="mc-mini mc-g-pay-wrap">
+            <span>{s.rowPay}</span>
+            <input class="mc-g-pay" type="number" inputmode="decimal" min="0" step="any" />
+          </label>
+          <button class="btn small ghost mc-g-remove" type="button" aria-label={s.removeRow} title={s.removeRow}>
+            <Icon name="Trash2" size={18} />
+          </button>
+          <p class="mc-out mc-g-out"></p>
+        </div>
+      </template>
+
+      <div class="grid-2">
+        <div class="field">
+          <label for="mc-currency">{s.currency}</label>
+          <select id="mc-currency">
+            {
+              CURRENCIES.map((c) => (
+                <option value={c} selected={c === defaults.currency}>
+                  {c} · {currencyNames.of(c)}
+                </option>
+              ))
+            }
+          </select>
+        </div>
+        <div class="field">
+          <label for="mc-overhead">{s.overhead}</label>
+          <input id="mc-overhead" type="number" inputmode="decimal" min="1" max="5" step="0.05" value={defaults.overhead} />
+        </div>
+      </div>
+      <p class="hint">{s.overheadHint}</p>
+      <div class="grid-2">
+        <div class="field">
+          <label for="mc-days">{s.workDays}</label>
+          <input id="mc-days" type="number" inputmode="decimal" min="1" max="31" step="any" value={defaults.workDays} />
+        </div>
+        <div class="field">
+          <label for="mc-hours">{s.hoursPerDay}</label>
+          <input id="mc-hours" type="number" inputmode="decimal" min="0.25" max="24" step="any" value={defaults.hoursPerDay} />
+        </div>
+      </div>
+      <p class="mc-basis" id="mc-basis"></p>
+      <p class="hint">{s.liveHint}</p>
+      <p class="hint">{s.saveHint}</p>
+    </div>
+  </details>
+
+  <section class="mc-plan" aria-labelledby="mc-plan-title">
+    <h3 class="mc-title" id="mc-plan-title">{s.planTitle}</h3>
+    <div class="grid-2">
+      <div class="field">
+        <label for="mc-plan-min">{s.planMinutes}</label>
+        <input id="mc-plan-min" type="number" inputmode="numeric" min="1" max="1440" step="1" value={defaults.planMinutes} />
+        <div class="row mc-presets" role="group" aria-label={s.presetsAria}>
+          {
+            PLAN_PRESETS.map((m) => (
+              <button class="btn small" type="button" data-min={m} aria-pressed={m === defaults.planMinutes ? 'true' : 'false'}>
+                {t(s.preset, { m })}
+              </button>
+            ))
+          }
+        </div>
+      </div>
+      <div class="field">
+        <span class="label" id="mc-rec-label">{s.recurrence}</span>
+        <div class="seg mc-rec" role="radiogroup" aria-labelledby="mc-rec-label">
+          {
+            RECURRENCES.map((r) => (
+              <label>
+                <input type="radio" name="mc-rec" value={r} checked={r === defaults.recurrence} />
+                <span>{s.recurrences[r]}</span>
+              </label>
+            ))
+          }
+        </div>
+        <span class="hint">{s.recurrenceHint}</span>
+      </div>
+    </div>
+    <div class="stats mc-stats">
+      <div class="stat"><span class="stat-value" id="mc-plan-meeting">–</span><span class="stat-label">{s.planMeeting}</span></div>
+      <div class="stat" id="mc-plan-month-wrap"><span class="stat-value" id="mc-plan-month">–</span><span class="stat-label">{s.planMonth}</span></div>
+      <div class="stat" id="mc-plan-year-wrap"><span class="stat-value" id="mc-plan-year">–</span><span class="stat-label">{s.planYear}</span></div>
+      <div class="stat"><span class="stat-value" id="mc-plan-hours">–</span><span class="stat-label" id="mc-plan-hours-label">{s.client.planHoursYear}</span></div>
+    </div>
+    <p class="mc-note" id="mc-note-hours"></p>
+    <p class="mc-note mc-note-save" id="mc-note-save"></p>
+  </section>
+
+  <section class="mc-rewards">
+    <h3 class="mc-title">{s.rewardsTitle}</h3>
+    <ul class="mc-reward-list" id="mc-rewards">
+      {
+        REWARD_IDS.map((id) => (
+          <li data-id={id}>
+            <Icon name={s.rewardIcons[id]} size={22} class="mc-reward-icon" />
+            <span class="mc-reward-name">{t(s.client.amounts[id].other, { n: 0 })}</span>
+          </li>
+        ))
+      }
+    </ul>
+    <p class="hint" id="mc-rewards-hint">{s.rewardsHint}</p>
+  </section>
+</div>
+
+<script>
+  import { $, $$, loadPref, savePref } from '../../lib/client';
+  import { readI18n } from '../../i18n/client';
+  import { formatNumber, plural, t } from '../../i18n/format';
+  import { LOCALE_INFO } from '../../i18n/locales';
+  import type { Strings } from './i18n';
+  import {
+    MAX_GROUPS,
+    costOf,
+    costPerHour,
+    averageHourly,
+    countOf,
+    decimalsFor,
+    formatClock,
+    formatDuration,
+    groupHourly,
+    headcount,
+    headlineReward,
+    meterCost,
+    meterElapsed,
+    meterPhase,
+    monthlyHours,
+    newGroup,
+    normalizeSettings,
+    personHourly,
+    plan,
+    planProgress,
+    planRemaining,
+    rebaseMeter,
+    resetMeter,
+    restoreMeter,
+    rewardsFor,
+    savings,
+    setRate,
+    toggleMeter,
+    trimMinutes,
+    type Group,
+    type Meter,
+    type PayPeriod,
+    type Phase,
+    type Reward,
+    type RewardId,
+    type Settings,
+  } from './logic';
+
+  const root = $('[data-tool="meeting-cost"]');
+  const { s, locale } = readI18n<Strings['client']>(root);
+  const intl = LOCALE_INFO[locale].intl;
+  const prefKey = `meeting-cost:${locale}`;
+  const meterKey = `meeting-cost:${locale}:meter`;
+  const defaults = JSON.parse(root.dataset.defaults ?? '{}') as Settings;
+
+  /* ---------- Elements ---------- */
+  const stage = $('#mc-stage', root);
+  const statusEl = $('#mc-status', root);
+  const intEl = $('#mc-int', root);
+  const fracEl = $('#mc-frac', root);
+  const bar = $('#mc-bar', root);
+  const fill = $('#mc-fill', root);
+  const elapsedEl = $('#mc-elapsed', root);
+  const leftEl = $('#mc-left', root);
+  const headlineEl = $('#mc-headline', root);
+  const rateEl = $('#mc-rate', root);
+  const toggleBtn = $<HTMLButtonElement>('#mc-toggle', root);
+  const toggleLabel = $('#mc-toggle-label', root);
+  const playIcon = $('[data-ico="play"]', toggleBtn);
+  const pauseIcon = $('[data-ico="pause"]', toggleBtn);
+  const resetBtn = $<HTMLButtonElement>('#mc-reset', root);
+  const fsBtn = $<HTMLButtonElement>('#mc-fullscreen', root);
+  const statEls = {
+    minute: $('#mc-minute', root),
+    hour: $('#mc-hour', root),
+    people: $('#mc-people', root),
+    average: $('#mc-average', root),
+  };
+
+  const modeRadios = $$<HTMLInputElement>('input[name="mc-mode"]', root);
+  const quickBox = $('#mc-quick', root);
+  const detailBox = $('#mc-detail', root);
+  const quickPeriodRadios = $$<HTMLInputElement>('input[name="mc-q-period"]', root);
+  const quickCount = $<HTMLInputElement>('#mc-q-count', root);
+  const quickPay = $<HTMLInputElement>('#mc-q-pay', root);
+  const quickPayLabel = $('#mc-q-pay-label', root);
+  const payLabels = JSON.parse(quickPayLabel.dataset.labels ?? '{}') as Record<PayPeriod, string>;
+  const quickOut = $('#mc-q-out', root);
+  const groupList = $('#mc-groups', root);
+  const groupTpl = $<HTMLTemplateElement>('#mc-group-tpl', root);
+  const addBtn = $<HTMLButtonElement>('#mc-add', root);
+  const currencySelect = $<HTMLSelectElement>('#mc-currency', root);
+  const overheadInput = $<HTMLInputElement>('#mc-overhead', root);
+  const daysInput = $<HTMLInputElement>('#mc-days', root);
+  const hoursInput = $<HTMLInputElement>('#mc-hours', root);
+  const basisEl = $('#mc-basis', root);
+
+  const planInput = $<HTMLInputElement>('#mc-plan-min', root);
+  const presetBtns = $$<HTMLButtonElement>('button[data-min]', root);
+  const recRadios = $$<HTMLInputElement>('input[name="mc-rec"]', root);
+  const planEls = {
+    meeting: $('#mc-plan-meeting', root),
+    monthWrap: $('#mc-plan-month-wrap', root),
+    month: $('#mc-plan-month', root),
+    yearWrap: $('#mc-plan-year-wrap', root),
+    year: $('#mc-plan-year', root),
+    hours: $('#mc-plan-hours', root),
+    hoursLabel: $('#mc-plan-hours-label', root),
+    noteHours: $('#mc-note-hours', root),
+    noteSave: $('#mc-note-save', root),
+  };
+
+  const rewardList = $('#mc-rewards', root);
+  const rewardsHint = $('#mc-rewards-hint', root);
+  const rewardItems = new Map($$<HTMLLIElement>('li[data-id]', rewardList).map((li) => [li.dataset.id as RewardId, li]));
+  const rewardsHintText = rewardsHint.textContent ?? '';
+  const baseTitle = document.title;
+
+  /* ---------- State ---------- */
+  let settings: Settings = normalizeSettings(loadPref<unknown>(prefKey, null), defaults);
+  // Date.now() (not performance.now()) so a running meter survives a reload.
+  let meter: Meter = setRate(restoreMeter(loadPref<unknown>(meterKey, null), Date.now()), Date.now(), costPerHour(settings));
+  let rewards: Reward[] = [];
+  let ticker: Intl.NumberFormat;
+  let plain: Intl.NumberFormat;
+  let whole: Intl.NumberFormat;
+  let lastRewardKey = '';
+  const last: Record<string, string> = {};
+
+  /** Currency formatter; without `decimals` it uses the currency's usual digits (2 for TWD, 0 for JPY). */
+  function money(decimals?: number): Intl.NumberFormat {
+    // zh-TW writes TWD as a bare "$"; en-US writes "NT$" with the same digit grouping.
+    const tag = locale === 'zh-TW' && settings.currency === 'TWD' ? 'en-US' : intl;
+    return new Intl.NumberFormat(tag, {
+      style: 'currency',
+      currency: settings.currency,
+      ...(decimals === undefined ? {} : { minimumFractionDigits: decimals, maximumFractionDigits: decimals }),
+    });
+  }
+
+  /** Totals of 100 or more read better without cents. */
+  const approx = (value: number) => (Math.abs(value) >= 100 ? whole : plain).format(value);
+  const num = (value: number, digits = 2) => formatNumber(value, digits, locale);
+
+  /** Write text only when it changed, so 60 updates a second stay cheap. */
+  function put(key: string, el: HTMLElement, text: string) {
+    if (last[key] === text) return;
+    last[key] = text;
+    el.textContent = text;
+  }
+
+  function saveMeter() {
+    savePref(meterKey, meter);
+  }
+
+  /* ---------- Rows by role ---------- */
+  const rowEls = () => $$<HTMLElement>('.mc-group', groupList);
+  const rowField = <T extends HTMLElement>(row: HTMLElement, cls: string) => $<T>(`.${cls}`, row);
+
+  function renderGroups() {
+    const template = groupTpl.content.firstElementChild as HTMLElement;
+    groupList.replaceChildren(
+      ...settings.groups.map((g) => {
+        const row = template.cloneNode(true) as HTMLElement;
+        rowField<HTMLInputElement>(row, 'mc-g-label').value = g.label;
+        rowField<HTMLSelectElement>(row, 'mc-g-period').value = g.period;
+        rowField<HTMLInputElement>(row, 'mc-g-count').value = String(g.count);
+        rowField<HTMLInputElement>(row, 'mc-g-pay').value = String(g.pay);
+        return row;
+      }),
+    );
+  }
+
+  /* ---------- Settings ---------- */
+  function writeForm() {
+    for (const radio of modeRadios) radio.checked = radio.value === settings.mode;
+    for (const radio of quickPeriodRadios) radio.checked = radio.value === settings.quick.period;
+    quickCount.value = String(settings.quick.count);
+    quickPay.value = String(settings.quick.pay);
+    currencySelect.value = settings.currency;
+    overheadInput.value = String(settings.overhead);
+    daysInput.value = String(settings.workDays);
+    hoursInput.value = String(settings.hoursPerDay);
+    planInput.value = String(settings.planMinutes);
+    for (const radio of recRadios) radio.checked = radio.value === settings.recurrence;
+    renderGroups();
+  }
+
+  function readForm(): Settings {
+    const checked = (radios: HTMLInputElement[]) => radios.find((r) => r.checked)?.value;
+    return normalizeSettings(
+      {
+        currency: currencySelect.value,
+        mode: checked(modeRadios),
+        quick: { count: quickCount.value, pay: quickPay.value, period: checked(quickPeriodRadios) },
+        groups: rowEls().map((row) => ({
+          label: rowField<HTMLInputElement>(row, 'mc-g-label').value,
+          period: rowField<HTMLSelectElement>(row, 'mc-g-period').value,
+          count: rowField<HTMLInputElement>(row, 'mc-g-count').value,
+          pay: rowField<HTMLInputElement>(row, 'mc-g-pay').value,
+        })),
+        workDays: daysInput.value,
+        hoursPerDay: hoursInput.value,
+        overhead: overheadInput.value,
+        planMinutes: planInput.value,
+        recurrence: checked(recRadios),
+      },
+      settings,
+    );
+  }
+
+  /** Static figures that only change with the settings. */
+  function apply() {
+    const perHour = costPerHour(settings);
+    rewards = rewardsFor(settings.currency);
+    ticker = money(decimalsFor(perHour / 3600));
+    plain = money();
+    whole = money(0);
+    lastRewardKey = '';
+
+    quickBox.hidden = settings.mode !== 'quick';
+    detailBox.hidden = settings.mode !== 'detail';
+    quickPayLabel.textContent = payLabels[settings.quick.period];
+    const out = (g: Group, template: string) =>
+      t(template, { each: plain.format(personHourly(g, settings)), total: plain.format(groupHourly(g, settings)) });
+    quickOut.textContent = out(settings.quick, s.quickOut);
+    const rows = rowEls();
+    rows.forEach((row, i) => {
+      const g = settings.groups[i];
+      if (g) rowField(row, 'mc-g-out').textContent = out(g, s.rowOut);
+      rowField(row, 'mc-g-remove').hidden = rows.length <= 1;
+    });
+    addBtn.hidden = settings.groups.length >= MAX_GROUPS;
+    basisEl.textContent = t(s.basis, {
+      days: num(settings.workDays),
+      hours: num(settings.hoursPerDay),
+      total: num(monthlyHours(settings.workDays, settings.hoursPerDay)),
+    });
+
+    const perMinute = perHour / 60;
+    const people = headcount(settings);
+    statEls.minute.textContent = money(Math.max(2, decimalsFor(perMinute) - 2)).format(perMinute);
+    statEls.hour.textContent = plain.format(perHour);
+    statEls.people.textContent = num(people, 0);
+    statEls.average.textContent = plain.format(averageHourly(settings));
+    rateEl.textContent = plural(locale, people, s.rateLine, { amount: money(Math.max(2, decimalsFor(perMinute) - 2)).format(perMinute) });
+
+    renderPlan();
+  }
+
+  function renderPlan() {
+    const p = plan(settings);
+    planEls.meeting.textContent = approx(p.perMeeting);
+    const recurring = p.perYear !== null;
+    planEls.monthWrap.hidden = !recurring;
+    planEls.yearWrap.hidden = !recurring;
+    if (recurring) {
+      planEls.month.textContent = approx(p.perMonth!);
+      planEls.year.textContent = approx(p.perYear!);
+      planEls.hours.textContent = plural(locale, p.hoursPerPersonYear!, s.hours);
+      planEls.hoursLabel.textContent = s.planHoursYear;
+      const days = settings.hoursPerDay > 0 ? p.hoursPerPersonYear! / settings.hoursPerDay : 0;
+      planEls.noteHours.textContent = t(s.noteHours, { h: num(p.hoursPerPersonYear!, 1), d: num(days, 1) });
+    } else {
+      planEls.hours.textContent = plural(locale, p.attendeeHours, s.hours);
+      planEls.hoursLabel.textContent = s.planHoursOnce;
+      planEls.noteHours.textContent = '';
+    }
+    planEls.noteHours.hidden = !recurring;
+
+    const cut = trimMinutes(settings.planMinutes);
+    const saved = savings(settings, cut);
+    planEls.noteSave.hidden = cut === 0 || !(saved > 0);
+    planEls.noteSave.textContent = t(recurring ? s.noteSave : s.noteSaveOnce, { m: num(cut, 0), amount: approx(saved) });
+
+    for (const btn of presetBtns) btn.setAttribute('aria-pressed', String(Number(btn.dataset.min) === settings.planMinutes));
+  }
+
+  /** Save the settings and move the meter onto the new cost per hour. */
+  function commit(currencyChanged = false) {
+    savePref(prefKey, settings);
+    const now = Date.now();
+    const rate = costPerHour(settings);
+    meter = currencyChanged ? rebaseMeter(meter, now, rate) : setRate(meter, now, rate);
+    saveMeter();
+    apply();
+    frame();
+  }
+
+  function onChange() {
+    const before = settings.currency;
+    settings = readForm();
+    commit(settings.currency !== before);
+  }
+
+  /* ---------- Rendering ---------- */
+  function renderAmount(value: number) {
+    const parts = ticker.formatToParts(value);
+    const cut = parts.findIndex((p) => p.type === 'decimal');
+    const head = cut < 0 ? parts : parts.slice(0, cut);
+    const tail = cut < 0 ? [] : parts.slice(cut);
+    put('int', intEl, head.map((p) => p.value).join(''));
+    put('frac', fracEl, tail.map((p) => p.value).join(''));
+  }
+
+  function amountText(reward: Reward, n: number): string {
+    return plural(locale, n, s.amounts[reward.id]);
+  }
+
+  function headline(phase: Phase, cost: number): string {
+    if (!(meter.rate > 0)) return s.noAttendees;
+    if (phase === 'idle') {
+      return t(s.headlineIdle, { m: num(settings.planMinutes), amount: approx(costOf(settings.planMinutes, meter.rate)) });
+    }
+    if (rewards.length === 0) return '';
+    const top = headlineReward(rewards, cost);
+    if (top) return t(s.headline, { thing: amountText(top, countOf(top, cost)) });
+    const first = rewards[0];
+    const ms = ((first.price - cost) / meter.rate) * 3_600_000;
+    return t(s.headlineSoon, { thing: amountText(first, 1), t: formatDuration(ms) });
+  }
+
+  function renderRewards(cost: number) {
+    if (rewards.length === 0) {
+      if (lastRewardKey !== 'none') {
+        lastRewardKey = 'none';
+        rewardList.hidden = true;
+        rewardsHint.textContent = s.noRewards;
+      }
+      return;
+    }
+    if (lastRewardKey !== settings.currency) {
+      lastRewardKey = settings.currency;
+      rewardList.hidden = false;
+      rewardsHint.textContent = rewardsHintText;
+      for (const reward of rewards) rewardList.append(rewardItems.get(reward.id)!);
+    }
+    const top = headlineReward(rewards, cost);
+    for (const reward of rewards) {
+      const li = rewardItems.get(reward.id)!;
+      const n = countOf(reward, cost);
+      li.classList.toggle('is-earned', n >= 1);
+      li.classList.toggle('is-top', reward === top);
+      put(`r:${reward.id}`, li.querySelector<HTMLElement>('.mc-reward-name')!, amountText(reward, n));
+    }
+  }
+
+  function frame() {
+    const now = Date.now();
+    const elapsed = meterElapsed(meter, now);
+    const cost = meterCost(meter, now);
+    const phase = meterPhase(meter, now);
+    const remaining = planRemaining(elapsed, settings.planMinutes);
+    const overtime = phase !== 'idle' && remaining < 0;
+    const view = phase === 'running' && overtime ? 'over' : phase;
+    if (stage.dataset.phase !== view) stage.dataset.phase = view;
+    if (stage.hasAttribute('data-over') !== overtime) stage.toggleAttribute('data-over', overtime);
+    put('status', statusEl, s.status[view]);
+    renderAmount(cost);
+
+    const progress = planProgress(elapsed, settings.planMinutes);
+    fill.style.transform = `scaleX(${progress})`;
+    const pct = String(Math.floor(progress * 100));
+    if (last.pct !== pct) {
+      last.pct = pct;
+      bar.setAttribute('aria-valuenow', pct);
+    }
+    put('elapsed', elapsedEl, t(s.elapsed, { t: formatClock(elapsed) }));
+    put(
+      'left',
+      leftEl,
+      remaining >= 0 ? t(s.left, { m: num(settings.planMinutes), t: formatDuration(remaining) }) : t(s.over, { t: formatClock(-remaining) }),
+    );
+    put('headline', headlineEl, headline(phase, cost));
+
+    if (last.phase !== phase) {
+      last.phase = phase;
+      toggleLabel.textContent = phase === 'running' ? s.pause : phase === 'paused' ? s.resume : s.start;
+      playIcon.hidden = phase === 'running';
+      pauseIcon.hidden = phase !== 'running';
+      resetBtn.disabled = phase === 'idle';
+    }
+    renderRewards(cost);
+  }
+
+  function loop() {
+    frame();
+    requestAnimationFrame(loop);
+  }
+
+  /** The tab title keeps counting even when the tab is in the background. */
+  function updateTitle() {
+    const now = Date.now();
+    const title = meterPhase(meter, now) === 'idle' ? baseTitle : t(s.title, { amount: approx(meterCost(meter, now)) });
+    if (document.title !== title) document.title = title;
+  }
+
+  /* ---------- Meter controls ---------- */
+  function toggle() {
+    meter = toggleMeter(setRate(meter, Date.now(), costPerHour(settings)), Date.now());
+    saveMeter();
+    frame();
+    updateTitle();
+  }
+
+  toggleBtn.addEventListener('click', toggle);
+  resetBtn.addEventListener('click', () => {
+    meter = resetMeter(costPerHour(settings));
+    saveMeter();
+    frame();
+    updateTitle();
+  });
+
+  /* ---------- Full screen + keep the screen awake ---------- */
+  let wakeLock: WakeLockSentinel | null = null;
+
+  async function keepAwake(on: boolean) {
+    try {
+      if (on && !wakeLock && 'wakeLock' in navigator) {
+        wakeLock = await navigator.wakeLock.request('screen');
+        wakeLock.addEventListener('release', () => (wakeLock = null));
+      } else if (!on && wakeLock) {
+        await wakeLock.release();
+        wakeLock = null;
+      }
+    } catch {
+      /* not allowed (battery saver, unsupported); the meter still works */
+    }
+  }
+
+  // Meeting-room screens and Android use the Fullscreen API; iPhone Safari has none for elements,
+  // so the stage then covers the page as a fixed layer instead. Either way the layout fits a
+  // projector, a portrait phone or a phone lying on its side on the table.
+  type WebkitDoc = Document & { webkitFullscreenElement?: Element; webkitFullscreenEnabled?: boolean; webkitExitFullscreen?: () => void };
+  type WebkitEl = HTMLElement & { webkitRequestFullscreen?: () => void };
+  const doc = document as WebkitDoc;
+  const native = () => (doc.fullscreenElement ?? doc.webkitFullscreenElement) === stage;
+  const isFull = () => stage.classList.contains('is-full');
+
+  async function enterFull() {
+    const el = stage as WebkitEl;
+    stage.classList.add('is-full');
+    fsBtn.textContent = s.exitFullscreen;
+    void keepAwake(true);
+    try {
+      // Request first, while the click still counts as a user gesture.
+      if (doc.fullscreenEnabled && el.requestFullscreen) return void (await el.requestFullscreen());
+      if (doc.webkitFullscreenEnabled && el.webkitRequestFullscreen) return void el.webkitRequestFullscreen();
+    } catch {
+      /* fall through to the fixed layer */
+    }
+    stage.classList.add('is-overlay');
+    document.documentElement.classList.add('mc-lock');
+  }
+
+  function leaveFull() {
+    stage.classList.remove('is-full', 'is-overlay');
+    document.documentElement.classList.remove('mc-lock');
+    fsBtn.textContent = s.fullscreen;
+    void keepAwake(false);
+  }
+
+  fsBtn.addEventListener('click', () => {
+    if (!isFull()) void enterFull();
+    else if (native()) void (document.exitFullscreen ? document.exitFullscreen() : doc.webkitExitFullscreen?.());
+    else leaveFull();
+  });
+  for (const type of ['fullscreenchange', 'webkitfullscreenchange']) {
+    document.addEventListener(type, () => {
+      if (!native() && !stage.classList.contains('is-overlay')) leaveFull();
+    });
+  }
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && stage.classList.contains('is-overlay')) leaveFull();
+    // Space starts or pauses on the big screen, unless a button or field has the key.
+    const target = e.target as Element | null;
+    if (e.key === ' ' && isFull() && !target?.closest('button, input, select, textarea, [contenteditable]')) {
+      e.preventDefault();
+      toggle();
+    }
+  });
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && isFull()) void keepAwake(true);
+  });
+
+  /* ---------- Events ---------- */
+  for (const radio of [...modeRadios, ...quickPeriodRadios, ...recRadios]) radio.addEventListener('change', onChange);
+  for (const el of [quickCount, quickPay, overheadInput, daysInput, hoursInput, planInput]) el.addEventListener('input', onChange);
+  currencySelect.addEventListener('change', onChange);
+  groupList.addEventListener('input', onChange);
+  groupList.addEventListener('change', (e) => {
+    if ((e.target as Element).matches('select')) onChange();
+  });
+  groupList.addEventListener('click', (e) => {
+    const row = (e.target as Element).closest('.mc-g-remove')?.closest<HTMLElement>('.mc-group');
+    if (!row) return;
+    const index = rowEls().indexOf(row);
+    settings = readForm();
+    if (settings.groups.length <= 1 || index < 0) return;
+    settings.groups.splice(index, 1);
+    renderGroups();
+    commit();
+    rowEls()[Math.min(index, settings.groups.length - 1)]?.querySelector<HTMLInputElement>('.mc-g-label')?.focus();
+  });
+  addBtn.addEventListener('click', () => {
+    settings = readForm();
+    if (settings.groups.length >= MAX_GROUPS) return;
+    settings.groups.push(newGroup(settings.groups[settings.groups.length - 1] ?? settings.quick));
+    renderGroups();
+    commit();
+    rowEls().at(-1)?.querySelector<HTMLInputElement>('.mc-g-label')?.focus();
+  });
+  for (const btn of presetBtns) {
+    btn.addEventListener('click', () => {
+      planInput.value = btn.dataset.min ?? '';
+      onChange();
+    });
+  }
+
+  writeForm();
+  apply();
+  loop();
+  updateTitle();
+  window.setInterval(updateTitle, 1000);
+</script>
+
+<style>
+  [hidden] {
+    display: none !important;
+  }
+  .mc-stage {
+    position: relative;
+    display: grid;
+    gap: 12px;
+    padding: 28px 22px 22px;
+    border-radius: var(--radius);
+    background: var(--accent-soft);
+    border: 1px solid color-mix(in oklab, var(--accent) 14%, transparent);
+    text-align: center;
+  }
+  .mc-status {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-2);
+  }
+  .mc-amount {
+    font-family: var(--mono);
+    font-variant-numeric: tabular-nums;
+    font-weight: 700;
+    font-size: clamp(36px, 9vw, 72px);
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+    color: var(--text);
+    overflow-wrap: anywhere;
+  }
+  .mc-frac {
+    font-size: 0.55em;
+    color: var(--accent);
+  }
+  [data-phase='idle'] .mc-frac,
+  [data-phase='paused'] .mc-frac {
+    color: var(--muted);
+  }
+  .mc-bar {
+    height: 14px;
+    border-radius: 999px;
+    background: color-mix(in oklab, var(--accent) 12%, var(--surface));
+    overflow: hidden;
+  }
+  .mc-fill {
+    display: block;
+    height: 100%;
+    background: var(--accent);
+    transform: scaleX(0);
+    transform-origin: left center;
+  }
+  [data-over] .mc-fill {
+    background: var(--warning);
+  }
+  .mc-meta {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 4px 12px;
+    font-size: 14px;
+    font-variant-numeric: tabular-nums;
+    color: var(--text-2);
+  }
+  [data-over] #mc-left {
+    color: var(--warning);
+    font-weight: 700;
+  }
+  .mc-headline {
+    margin: 0;
+    min-height: 1.5em;
+    font-size: 18px;
+    font-weight: 700;
+  }
+  .mc-rate {
+    margin: -6px 0 0;
+    font-size: 14px;
+    color: var(--text-2);
+    font-variant-numeric: tabular-nums;
+  }
+  .mc-controls {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 10px;
+  }
+  .mc-toggle {
+    min-width: 9em;
+  }
+  .mc-ico {
+    display: inline-flex;
+  }
+  .mc-fs {
+    justify-self: center;
+  }
+  /* Full screen (native or the fixed layer on iPhone). Sizes follow the shorter side,
+     so the meter also fits a projector or a phone turned sideways. */
+  .mc-stage.is-full {
+    align-content: center;
+    gap: min(3vh, 3vw);
+    min-height: 100dvh;
+    padding: max(16px, env(safe-area-inset-top)) max(20px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom))
+      max(20px, env(safe-area-inset-left));
+    border: 0;
+    border-radius: 0;
+    box-sizing: border-box;
+  }
+  .mc-stage.is-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    height: 100dvh;
+    overflow: auto;
+  }
+  :global(html.mc-lock),
+  :global(html.mc-lock body) {
+    overflow: hidden;
+  }
+  .mc-stage.is-full .mc-amount {
+    font-size: clamp(40px, min(13vw, 20vh), 200px);
+  }
+  .mc-stage.is-full .mc-status,
+  .mc-stage.is-full .mc-headline,
+  .mc-stage.is-full .mc-meta {
+    font-size: clamp(15px, min(2.6vw, 4.5vh), 34px);
+  }
+  .mc-stage.is-full .mc-rate {
+    margin: 0;
+    font-size: clamp(13px, min(2vw, 3.4vh), 26px);
+  }
+  .mc-stage.is-full .mc-bar {
+    width: min(100%, 1200px);
+    height: clamp(12px, 2.5vh, 28px);
+    justify-self: center;
+  }
+  .mc-stage.is-full .mc-meta {
+    width: min(100%, 1200px);
+    justify-self: center;
+  }
+  .mc-stage.is-full .mc-controls .btn {
+    min-height: clamp(40px, 7vh, 64px);
+    font-size: clamp(15px, min(2vw, 3.4vh), 24px);
+    padding-inline: clamp(16px, 2vw, 28px);
+  }
+  .mc-stage.is-full .mc-fs {
+    position: absolute;
+    top: max(10px, env(safe-area-inset-top));
+    right: max(10px, env(safe-area-inset-right));
+  }
+  /* A phone on its side: little height, so tighten the gaps. */
+  @media (orientation: landscape) and (max-height: 500px) {
+    .mc-stage.is-full {
+      gap: 1.6vh;
+    }
+    .mc-stage.is-full .mc-amount {
+      font-size: clamp(36px, min(10vw, 22vh), 160px);
+    }
+    .mc-stage.is-full .mc-controls .btn {
+      min-height: 36px;
+    }
+  }
+
+  .mc-title {
+    margin: 0;
+    font-size: 16px;
+  }
+  /* Two stats per row on a phone: shrink the figures so amounts do not break mid-number. */
+  .mc-stats .stat {
+    padding: 12px;
+  }
+  .mc-stats .stat-value {
+    font-size: clamp(17px, 4.6vw, 22px);
+  }
+  .mc-out,
+  .mc-basis {
+    margin: 0;
+    font-size: 14px;
+    color: var(--text-2);
+    font-variant-numeric: tabular-nums;
+  }
+  .mc-basis {
+    font-weight: 600;
+  }
+  .mc-quick,
+  .mc-detail {
+    display: grid;
+    gap: 12px;
+  }
+  .mc-quick .seg {
+    justify-self: start;
+  }
+
+  /* Rows are cloned from the <template> by the script, so their styles are global under .mc-groups. */
+  .mc-groups {
+    display: grid;
+    gap: 10px;
+  }
+  .mc-groups :global(.mc-group) {
+    display: grid;
+    grid-template-columns: 5.5em minmax(0, 1fr) auto auto;
+    grid-template-areas:
+      'label label period remove'
+      'count pay pay pay'
+      'out out out out';
+    gap: 8px 10px;
+    align-items: end;
+    padding: 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface-2);
+  }
+  .mc-groups :global(.mc-g-label-wrap) {
+    grid-area: label;
+  }
+  .mc-groups :global(.mc-g-period-wrap) {
+    grid-area: period;
+  }
+  .mc-groups :global(.mc-g-count-wrap) {
+    grid-area: count;
+  }
+  .mc-groups :global(.mc-g-pay-wrap) {
+    grid-area: pay;
+  }
+  .mc-groups :global(.mc-g-remove) {
+    grid-area: remove;
+    min-height: 44px;
+    padding: 4px 8px;
+    color: var(--muted);
+  }
+  .mc-groups :global(.mc-g-remove:hover) {
+    color: var(--danger);
+  }
+  .mc-groups :global(.mc-g-remove[hidden]) {
+    display: none;
+  }
+  .mc-groups :global(.mc-g-out) {
+    grid-area: out;
+  }
+  .mc-groups :global(.mc-mini) {
+    display: grid;
+    gap: 4px;
+    min-width: 0;
+  }
+  .mc-groups :global(.mc-mini > span) {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--muted);
+    text-align: start;
+  }
+  /* Same height for inputs, selects and the remove button so the row lines up. */
+  .mc-groups :global(input),
+  .mc-groups :global(select) {
+    height: 44px;
+  }
+  .mc-groups :global(.mc-g-period) {
+    width: auto;
+  }
+  @media (min-width: 640px) {
+    .mc-groups :global(.mc-group) {
+      grid-template-columns: minmax(0, 1.3fr) 6em minmax(0, 1fr) auto auto;
+      grid-template-areas:
+        'label count pay period remove'
+        'out out out out out';
+    }
+  }
+
+  .mc-settings {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+  }
+  .mc-settings summary {
+    padding: 10px 14px;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-2);
+    cursor: pointer;
+  }
+  .mc-settings[open] summary {
+    border-bottom: 1px solid var(--border);
+  }
+  .mc-settings-body {
+    display: grid;
+    gap: 14px;
+    padding: 14px;
+  }
+  .mc-settings-body .hint {
+    margin: 0;
+  }
+  .mc-settings-body .hint + .hint {
+    margin-top: -8px;
+  }
+
+  .mc-plan {
+    display: grid;
+    gap: 14px;
+    padding: 14px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+  }
+  .mc-presets {
+    gap: 6px;
+  }
+  .mc-presets .btn[aria-pressed='true'] {
+    color: var(--accent);
+    border-color: color-mix(in oklab, var(--accent) 50%, transparent);
+    background: var(--accent-soft);
+  }
+  .mc-plan .seg {
+    justify-self: start;
+  }
+  /* Four options on a phone: equal columns across the full width instead of wrapping. */
+  @media (max-width: 639px) {
+    .mc-plan .mc-rec {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      justify-self: stretch;
+    }
+    .mc-rec span {
+      padding-inline: 4px;
+      text-align: center;
+    }
+  }
+  .mc-plan .hint {
+    margin: 0;
+  }
+  .mc-note {
+    margin: 0;
+    font-size: 15px;
+    color: var(--text-2);
+  }
+  .mc-note-save {
+    font-weight: 700;
+    color: var(--text);
+  }
+  .mc-note + .mc-note {
+    margin-top: -8px;
+  }
+
+  .mc-rewards {
+    display: grid;
+    gap: 10px;
+  }
+  .mc-reward-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 8px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .mc-reward-list :global(li) {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    color: var(--muted);
+  }
+  .mc-reward-list :global(li.is-earned) {
+    color: var(--text);
+  }
+  .mc-reward-list :global(li.is-top) {
+    border-color: color-mix(in oklab, var(--accent) 40%, transparent);
+    background: var(--accent-soft);
+  }
+  .mc-reward-list :global(.mc-reward-icon) {
+    flex: none;
+  }
+  .mc-reward-list :global(.is-top .mc-reward-icon) {
+    color: var(--accent);
+  }
+  .mc-reward-list :global(.mc-reward-name) {
+    flex: 1;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    text-align: start;
+  }
+  .mc-rewards .hint {
+    margin: 0;
+  }
+</style>
