@@ -81,7 +81,7 @@ export default defineTool({
       a: '不行。上升星座需要精確的出生時間與出生地點，約每 2 小時換一個，本工具只查太陽星座與生肖。',
     },
   ],
-  related: ['lunar-converter', 'age-calculator', 'roc-year-converter', 'date-diff'],
+  related: ['lunar-converter', 'age-calculator', 'roc-year-converter', 'birthday-moon', 'date-diff'],
   priority: 70,
   updated: '2026-10-29',
 });

@@ -89,7 +89,7 @@ export default defineTool({
       a: 'No. The QR code is generated in your browser. URLs, passwords and contact details never leave your device.',
     },
   ],
-  related: ['password-generator', 'random-number', 'word-counter'],
+  related: ['password-generator', 'random-number', 'word-counter', 'led-marquee'],
   priority: 80,
   updated: '2026-10-29',
 });

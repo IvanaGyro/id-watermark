@@ -80,7 +80,7 @@ export default defineTool({
       a: 'No. Cropping runs in your browser using canvas, so the image never leaves your device.',
     },
   ],
-  related: ['image-resizer', 'image-compressor', 'image-converter', 'heic-to-jpg', 'image-to-pdf'],
+  related: ['image-resizer', 'image-compressor', 'image-converter', 'bead-pattern', 'heic-to-jpg', 'image-to-pdf'],
   priority: 78,
   updated: '2026-10-29',
 });

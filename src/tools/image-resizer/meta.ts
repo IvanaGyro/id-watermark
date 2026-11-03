@@ -66,7 +66,7 @@ export default defineTool({
       a: '不會。調整尺寸完全在你的瀏覽器中完成，關閉網頁後不會留下任何資料。',
     },
   ],
-  related: ['image-compressor', 'image-converter', 'image-to-base64', 'unit-converter'],
+  related: ['image-compressor', 'image-converter', 'image-to-base64', 'bead-pattern', 'unit-converter'],
   priority: 70,
   updated: '2026-10-29',
 });

@@ -55,7 +55,7 @@ export default defineTool({
       a: '目前不支援 CSS 顏色名稱，請改用色碼，例如 red 是 #ff0000、white 是 #ffffff。',
     },
   ],
-  related: ['image-converter', 'html-entities', 'markdown-preview', 'json-formatter'],
+  related: ['image-converter', 'html-entities', 'markdown-preview', 'bead-pattern', 'json-formatter'],
   priority: 60,
   updated: '2026-10-29',
 });

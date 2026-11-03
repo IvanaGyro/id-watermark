@@ -80,7 +80,7 @@ export default defineTool({
       a: 'No. Resizing uses your browser’s canvas on your own device, so your photos are never sent to a server.',
     },
   ],
-  related: ['image-compressor', 'image-crop', 'image-converter', 'heic-to-jpg', 'image-to-pdf', 'image-to-base64'],
+  related: ['image-compressor', 'image-crop', 'image-converter', 'bead-pattern', 'heic-to-jpg', 'image-to-pdf', 'image-to-base64'],
   priority: 70,
   updated: '2026-10-29',
 });

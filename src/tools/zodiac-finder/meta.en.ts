@@ -88,7 +88,7 @@ export default defineTool({
       a: 'Birthdays from January 31, 1900 to the end of 2100, based on astronomical Lunar New Year dates in China Standard Time.',
     },
   ],
-  related: ['new-year-countdown', 'timezone-converter', 'spin-wheel', 'random-number'],
+  related: ['new-year-countdown', 'timezone-converter', 'spin-wheel', 'birthday-moon', 'random-number'],
   priority: 70,
   updated: '2026-10-29',
 });

@@ -76,7 +76,7 @@ export default defineTool({
       a: '現在は対応していません。HEX、rgb()、hsl()、oklch() の形式で入力してください。色見本をクリックすると OS のカラーピッカーが開き、対応環境ではスポイトで画面上の色を拾うこともできます。',
     },
   ],
-  related: ['image-converter', 'html-entities', 'markdown-preview', 'json-formatter'],
+  related: ['image-converter', 'html-entities', 'markdown-preview', 'bead-pattern', 'json-formatter'],
   priority: 60,
   updated: '2026-10-29',
 });

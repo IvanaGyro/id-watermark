@@ -57,7 +57,7 @@ export default defineTool({
       a: '如果游標停在輸入框或某個按鈕上，空白鍵會先作用在那個元件。先點一下頁面空白處再按空白鍵即可；L 與 R 鍵則只要不是在輸入框中都能使用。',
     },
   ],
-  related: ['countdown-timer', 'pomodoro', 'date-diff', 'timezone-converter'],
+  related: ['countdown-timer', 'pomodoro', 'date-diff', 'meeting-cost', 'timezone-converter'],
   priority: 50,
   updated: '2026-10-29',
 });

@@ -85,7 +85,7 @@ export default defineTool({
       a: '不會。所有測試畫面都是由瀏覽器直接產生，不需要安裝任何程式，也不會上傳或記錄任何資料。',
     },
   ],
-  related: ['keyboard-tester', 'webcam-test', 'mic-test', 'image-resizer'],
+  related: ['keyboard-tester', 'webcam-test', 'mic-test', 'led-marquee', 'image-resizer'],
   priority: 60,
   updated: '2026-10-29',
 });

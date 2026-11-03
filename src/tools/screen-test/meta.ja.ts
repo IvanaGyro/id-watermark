@@ -87,7 +87,7 @@ export default defineTool({
       a: 'できます。テレビのブラウザでこのページを開くか、パソコンの画面をテレビにミラーリングして全画面で開始します。ミラーリングでは拡大縮小で 1 ピクセルがぼやけることがあるので、近づいて確認してください。',
     },
   ],
-  related: ['keyboard-tester', 'webcam-test', 'mic-test', 'image-resizer'],
+  related: ['keyboard-tester', 'webcam-test', 'mic-test', 'led-marquee', 'image-resizer'],
   priority: 60,
   updated: '2026-10-29',
 });

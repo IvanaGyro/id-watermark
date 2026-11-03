@@ -61,7 +61,7 @@ export default defineTool({
       a: '生肖以農曆新年為界。若生日在當年春節之前，傳統上屬於前一年的生肖；本工具以西元年顯示，請再對照當年春節日期確認。',
     },
   ],
-  related: ['date-diff', 'countdown-timer', 'timezone-converter', 'bmi-calculator'],
+  related: ['date-diff', 'countdown-timer', 'timezone-converter', 'life-in-weeks', 'birthday-moon', 'bmi-calculator'],
   priority: 65,
   updated: '2026-10-29',
 });

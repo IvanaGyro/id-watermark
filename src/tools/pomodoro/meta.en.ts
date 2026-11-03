@@ -81,7 +81,7 @@ export default defineTool({
       a: 'Yes. Share your screen during a video call or put the page in a corner of your stream so everyone follows the same focus and break schedule.',
     },
   ],
-  related: ['countdown-timer', 'stopwatch', 'word-counter', 'water-intake', 'salary-per-second'],
+  related: ['countdown-timer', 'stopwatch', 'word-counter', 'meeting-cost', 'water-intake', 'salary-per-second'],
   priority: 55,
   updated: '2026-10-29',
 });

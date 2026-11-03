@@ -91,7 +91,7 @@ export default defineTool({
       a: '畫面關閉時瀏覽器會暫停網頁，解鎖後會立刻顯示正確的剩餘時間，但提示音不會在鎖定時響起。跨年當下建議讓螢幕保持開啟。',
     },
   ],
-  related: ['holidays-2027', 'lunar-converter', 'taiwan-time', 'countdown-timer'],
+  related: ['holidays-2027', 'lunar-converter', 'taiwan-time', 'life-in-weeks', 'countdown-timer'],
   priority: 88,
   updated: '2026-10-29',
 });

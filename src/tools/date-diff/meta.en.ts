@@ -88,7 +88,7 @@ export default defineTool({
       a: 'Yes. Any two dates work, including historical ones. If the end date is earlier than the start date, the tool counts from the earlier date and tells you so.',
     },
   ],
-  related: ['age-calculator', 'countdown-timer', 'timezone-converter', 'timestamp-converter'],
+  related: ['age-calculator', 'countdown-timer', 'timezone-converter', 'life-in-weeks', 'timestamp-converter'],
   priority: 75,
   updated: '2026-10-29',
 });

@@ -89,7 +89,7 @@ export default defineTool({
       a: 'Saturday, February 6, 2027, which begins the Year of the Goat. Lunar New Year’s Eve is Friday, February 5.',
     },
   ],
-  related: ['timezone-converter', 'countdown-timer', 'stopwatch', 'zodiac-finder'],
+  related: ['timezone-converter', 'countdown-timer', 'stopwatch', 'life-in-weeks', 'zodiac-finder'],
   priority: 88,
   updated: '2026-10-29',
 });

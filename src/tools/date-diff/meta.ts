@@ -61,7 +61,7 @@ export default defineTool({
       a: '可以。結束日期早於開始日期時會自動以較早的日期起算並顯示正數天數；在日期加減模式選擇「之前」即可往回推算。',
     },
   ],
-  related: ['age-calculator', 'countdown-timer', 'timezone-converter', 'timestamp-converter'],
+  related: ['age-calculator', 'countdown-timer', 'timezone-converter', 'life-in-weeks', 'timestamp-converter'],
   priority: 75,
   updated: '2026-10-29',
 });

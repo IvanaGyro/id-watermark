@@ -61,7 +61,7 @@ export default defineTool({
       a: '離開螢幕最好：起身伸展、喝水、上廁所或看看遠方讓眼睛休息。避免在休息時處理訊息或開始新工作，否則下一個番茄會更難進入狀態。',
     },
   ],
-  related: ['countdown-timer', 'stopwatch', 'word-counter', 'date-diff', 'salary-per-second'],
+  related: ['countdown-timer', 'stopwatch', 'word-counter', 'meeting-cost', 'date-diff', 'salary-per-second'],
   priority: 55,
   updated: '2026-10-29',
 });

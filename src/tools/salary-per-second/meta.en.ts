@@ -84,7 +84,7 @@ export default defineTool({
       a: 'No. All maths happens in your browser, and settings are stored only in this browser on this device.',
     },
   ],
-  related: ['time-card-calculator', 'pomodoro', 'countdown-timer', 'percentage-calculator'],
+  related: ['time-card-calculator', 'pomodoro', 'countdown-timer', 'meeting-cost', 'percentage-calculator'],
   priority: 50,
   updated: '2026-11-03',
 });

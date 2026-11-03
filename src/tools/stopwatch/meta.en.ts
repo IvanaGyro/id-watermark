@@ -79,7 +79,7 @@ export default defineTool({
       a: 'If a text box or button has focus, Space acts on that element first. Click an empty area of the page and try again. L and R work anywhere outside a text box.',
     },
   ],
-  related: ['countdown-timer', 'pomodoro', 'timezone-converter', 'random-number'],
+  related: ['countdown-timer', 'pomodoro', 'timezone-converter', 'meeting-cost', 'random-number'],
   priority: 50,
   updated: '2026-10-29',
 });

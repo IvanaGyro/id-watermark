@@ -86,7 +86,7 @@ export default defineTool({
       a: '可以。直接選取 HEIC 照片即可，瀏覽器不支援時會自動在你的裝置上轉成 JPG 再裁切，照片不會上傳。',
     },
   ],
-  related: ['image-resizer', 'image-compressor', 'image-converter', 'heic-to-jpg', 'image-to-pdf'],
+  related: ['image-resizer', 'image-compressor', 'image-converter', 'bead-pattern', 'heic-to-jpg', 'image-to-pdf'],
   priority: 78,
   updated: '2026-10-29',
 });

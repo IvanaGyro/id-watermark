@@ -79,7 +79,7 @@ export default defineTool({
       a: '入力欄やボタンにフォーカスがあると、スペースキーはその要素に対して働きます。ページの余白をクリックしてからもう一度押してください。L と R は入力欄以外ならどこでも使えます。',
     },
   ],
-  related: ['countdown-timer', 'pomodoro', 'timezone-converter', 'random-number'],
+  related: ['countdown-timer', 'pomodoro', 'timezone-converter', 'meeting-cost', 'random-number'],
   priority: 50,
   updated: '2026-10-29',
 });

@@ -76,7 +76,7 @@ export default defineTool({
       a: 'Not at the moment. Enter the color as HEX, rgb(), hsl() or oklch(). You can also click the swatch to open your system’s color picker, or use its eyedropper to grab a color from the screen where supported.',
     },
   ],
-  related: ['image-converter', 'html-entities', 'markdown-preview', 'json-formatter'],
+  related: ['image-converter', 'html-entities', 'markdown-preview', 'bead-pattern', 'json-formatter'],
   priority: 60,
   updated: '2026-10-29',
 });

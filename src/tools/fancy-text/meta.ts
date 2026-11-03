@@ -84,7 +84,7 @@ export default defineTool({
       a: '不行。IG 用戶名稱只接受英文字母、數字、底線與句點，特殊字體只能放在顯示的「名稱」與「個人簡介」。',
     },
   ],
-  related: ['case-converter', 'fullwidth-halfwidth', 'word-counter', 'zh-convert', 'lorem-ipsum'],
+  related: ['case-converter', 'fullwidth-halfwidth', 'word-counter', 'led-marquee', 'zh-convert', 'lorem-ipsum'],
   priority: 75,
   updated: '2026-10-29',
 });

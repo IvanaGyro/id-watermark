@@ -88,7 +88,7 @@ export default defineTool({
       a: 'はい。誕生日から今日までの経過日数や、過去の出来事どうしの間隔も計算できます。年齢を知りたい場合は年齢計算ツールが便利です。',
     },
   ],
-  related: ['age-calculator', 'countdown-timer', 'timezone-converter', 'timestamp-converter'],
+  related: ['age-calculator', 'countdown-timer', 'timezone-converter', 'life-in-weeks', 'timestamp-converter'],
   priority: 75,
   updated: '2026-10-29',
 });

@@ -82,7 +82,7 @@ export default defineTool({
       a: 'テレビ放送やネット配信は、映像の処理や伝送のため数秒から十数秒遅れて届きます。このページは標準時刻と時刻合わせ済みなので、0 秒が日本時間の 0 時です。',
     },
   ],
-  related: ['timezone-converter', 'countdown-timer', 'stopwatch', 'zodiac-finder'],
+  related: ['timezone-converter', 'countdown-timer', 'stopwatch', 'life-in-weeks', 'zodiac-finder'],
   priority: 88,
   updated: '2026-10-29',
 });

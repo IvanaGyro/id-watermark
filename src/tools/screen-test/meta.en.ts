@@ -87,7 +87,7 @@ export default defineTool({
       a: 'Yes. Open the page in the TV’s web browser, or cast or mirror a laptop browser window to the TV, and start the test in full screen. On a mirrored screen, scaling can soften single pixels, so look closely.',
     },
   ],
-  related: ['keyboard-tester', 'webcam-test', 'mic-test', 'image-resizer'],
+  related: ['keyboard-tester', 'webcam-test', 'mic-test', 'led-marquee', 'image-resizer'],
   priority: 60,
   updated: '2026-10-29',
 });

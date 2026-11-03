@@ -88,7 +88,7 @@ export default defineTool({
       a: '生まれ年のリストには和暦も併記しています。たとえば昭和 60 年は 1985 年、平成元年は 1989 年です。改元のあった年は「昭和64年・平成元年」のように両方を表示します。',
     },
   ],
-  related: ['new-year-countdown', 'timezone-converter', 'spin-wheel', 'random-number'],
+  related: ['new-year-countdown', 'timezone-converter', 'spin-wheel', 'birthday-moon', 'random-number'],
   priority: 70,
   updated: '2026-10-29',
 });

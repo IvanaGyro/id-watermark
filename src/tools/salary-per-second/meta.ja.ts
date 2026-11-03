@@ -85,7 +85,7 @@ export default defineTool({
       a: '送信されません。計算はすべてブラウザ内で行い、設定はこの端末のブラウザにだけ保存されます。',
     },
   ],
-  related: ['take-home-pay', 'pomodoro', 'countdown-timer', 'percentage-calculator'],
+  related: ['take-home-pay', 'pomodoro', 'countdown-timer', 'meeting-cost', 'percentage-calculator'],
   priority: 50,
   updated: '2026-11-03',
 });

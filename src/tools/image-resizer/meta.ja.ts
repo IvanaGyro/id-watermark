@@ -79,7 +79,7 @@ export default defineTool({
       a: 'いいえ。ブラウザの canvas を使って端末内でリサイズするため、画像がサーバーに送られることはありません。',
     },
   ],
-  related: ['image-compressor', 'image-crop', 'image-converter', 'heic-to-jpg', 'image-to-pdf', 'image-to-base64'],
+  related: ['image-compressor', 'image-crop', 'image-converter', 'bead-pattern', 'heic-to-jpg', 'image-to-pdf', 'image-to-base64'],
   priority: 70,
   updated: '2026-10-29',
 });

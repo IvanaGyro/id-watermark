@@ -62,7 +62,7 @@ export default defineTool({
       a: '不會。QR Code 完全在你的瀏覽器中產生，網址、密碼與聯絡資料都不會傳送到任何伺服器。',
     },
   ],
-  related: ['url-encoder', 'password-generator', 'image-to-base64', 'image-resizer'],
+  related: ['url-encoder', 'password-generator', 'image-to-base64', 'led-marquee', 'image-resizer'],
   priority: 80,
   updated: '2026-10-29',
 });

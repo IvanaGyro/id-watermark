@@ -79,7 +79,7 @@ export default defineTool({
       a: 'いいえ。トリミングはブラウザの canvas を使って行うため、画像が端末の外に送られることはありません。',
     },
   ],
-  related: ['image-resizer', 'image-compressor', 'image-converter', 'heic-to-jpg', 'image-to-pdf'],
+  related: ['image-resizer', 'image-compressor', 'image-converter', 'bead-pattern', 'heic-to-jpg', 'image-to-pdf'],
   priority: 78,
   updated: '2026-10-29',
 });

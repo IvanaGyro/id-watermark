@@ -84,7 +84,7 @@ export default defineTool({
       a: '生肖以農曆新年為界。國曆生日落在當年春節之前的人，屬前一年的生肖。例如 2026 年 2 月 10 日出生，農曆仍是乙巳年十二月，屬蛇。八字命理則以立春為界，兩者可能不同。',
     },
   ],
-  related: ['zodiac-finder', 'roc-year-converter', 'holidays-2026', 'age-calculator', 'date-diff'],
+  related: ['zodiac-finder', 'roc-year-converter', 'holidays-2026', 'birthday-moon', 'age-calculator', 'date-diff'],
   priority: 85,
   updated: '2026-10-29',
 });
