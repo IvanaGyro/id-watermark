@@ -1,0 +1,770 @@
+---
+import { i18nAttrs, pickStrings, type ToolProps } from '../../i18n/tool';
+import Icon from '../../components/Icon.astro';
+import { BG_SWATCHES, DEFAULTS, DIRECTIONS, LIMITS, TEXT_SWATCHES, type Settings } from './logic';
+import i18n from './i18n';
+
+type Props = ToolProps;
+const { locale = 'zh-TW' } = Astro.props;
+const s = pickStrings(i18n, locale);
+const defaults: Settings = { ...DEFAULTS, text: s.defaultText };
+const palettes = [
+  { key: 'fg', label: s.textColor, custom: s.customText, swatches: TEXT_SWATCHES, value: defaults.fg },
+  { key: 'bg', label: s.bgColor, custom: s.customBg, swatches: BG_SWATCHES, value: defaults.bg },
+] as const;
+---
+
+<div class="tool" data-tool="led-marquee" data-defaults={JSON.stringify(defaults)} {...i18nAttrs(locale, s.client)}>
+  <div
+    class="lm-stage"
+    id="lm-stage"
+    role="group"
+    aria-label={s.stageAria}
+    style={`--lm-fg:${defaults.fg};--lm-bg:${defaults.bg}`}
+  >
+    <div class="lm-screen" id="lm-screen">
+      <div class="lm-flip" id="lm-flip">
+        <div class="lm-track" id="lm-track"><span id="lm-text">{defaults.text}</span></div>
+      </div>
+      <div class="lm-dots" aria-hidden="true"></div>
+      <div class="lm-controls" id="lm-controls">
+        <p class="lm-tip">{s.tip}</p>
+        <button type="button" class="lm-ctl" id="lm-rotate"><Icon name="RotateCw" size={18} />{s.rotate}</button>
+        <button type="button" class="lm-ctl" id="lm-exit"><Icon name="X" size={18} />{s.exitFullscreen}</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="field">
+    <label for="lm-input">{s.textLabel}</label>
+    <input
+      id="lm-input"
+      class="lm-input"
+      type="text"
+      maxlength={LIMITS.textLength}
+      value={defaults.text}
+      placeholder={s.textPlaceholder}
+      autocomplete="off"
+      enterkeyhint="done"
+    />
+  </div>
+
+  <div class="lm-actions">
+    <button type="button" class="btn primary lm-go" id="lm-fullscreen"><Icon name="Maximize" size={18} />{s.fullscreen}</button>
+    <button type="button" class="btn" id="lm-copy"><Icon name="Link" size={18} /><span>{s.copyLink}</span></button>
+    <button type="button" class="btn" id="lm-share" hidden><Icon name="Share2" size={18} />{s.share}</button>
+  </div>
+  <p class="hint lm-hint">{s.landscapeHint}</p>
+
+  <div class="lm-options">
+    <div class="field">
+      <span class="label" id="lm-dir-label">{s.motion}</span>
+      <div class="seg" role="radiogroup" aria-labelledby="lm-dir-label">
+        {
+          DIRECTIONS.map((d) => (
+            <label>
+              <input type="radio" name="lm-dir" value={d} checked={d === defaults.dir} />
+              <span>{s.dirs[d]}</span>
+            </label>
+          ))
+        }
+      </div>
+    </div>
+
+    <div class="grid-2">
+      {
+        palettes.map((p) => (
+          <div class="field">
+            <span class="label" id={`lm-${p.key}-label`}>{p.label}</span>
+            <div class="lm-swatches" role="radiogroup" aria-labelledby={`lm-${p.key}-label`}>
+              {p.swatches.map((c) => (
+                <label class="lm-swatch" title={s.colors[c.name]}>
+                  <input type="radio" name={`lm-${p.key}`} value={c.hex} aria-label={s.colors[c.name]} checked={c.hex === p.value} />
+                  <span style={`--c:${c.hex}`} />
+                </label>
+              ))}
+              <label class="lm-swatch lm-custom" title={p.custom} id={`lm-${p.key}-custom`}>
+                <input type="color" value={p.value} aria-label={p.custom} />
+                <span />
+              </label>
+            </div>
+          </div>
+        ))
+      }
+    </div>
+
+    <div class="grid-2">
+      <div class="field">
+        <label for="lm-speed" class="lm-range-label">{s.speed}<output id="lm-speed-out">{defaults.speed}</output></label>
+        <input id="lm-speed" type="range" min={LIMITS.speed[0]} max={LIMITS.speed[1]} step="1" value={defaults.speed} />
+      </div>
+      <div class="field">
+        <label for="lm-size" class="lm-range-label">{s.size}<output id="lm-size-out">{s.client.fill}</output></label>
+        <input id="lm-size" type="range" min={LIMITS.size[0]} max={LIMITS.size[1]} step="5" value={defaults.size} />
+      </div>
+    </div>
+
+    <div class="lm-toggles">
+      <label class="check"><input type="checkbox" id="lm-dots" checked={defaults.dots} /> {s.dots}</label>
+      <label class="check"><input type="checkbox" id="lm-blink" checked={defaults.blink} /> {s.blink}</label>
+      <label class="check"><input type="checkbox" id="lm-mirror" checked={defaults.mirror} /> {s.mirror}</label>
+    </div>
+    <p class="notice" id="lm-contrast" hidden>{s.lowContrast}</p>
+  </div>
+  <p class="hint lm-hint">{s.saveHint}</p>
+</div>
+
+<script>
+  import { $, $$, copyText, loadPref, savePref } from '../../lib/client';
+  import { readI18n } from '../../i18n/client';
+  import { t } from '../../i18n/format';
+  import type { Strings } from './i18n';
+  import {
+    MIN_CONTRAST,
+    STATIC_MARGIN,
+    contrastRatio,
+    decodeShare,
+    dotPitch,
+    encodeShare,
+    fitFont,
+    fontSizeFor,
+    normalizeSettings,
+    preferWrapAnywhere,
+    rotationFor,
+    scrollX,
+    speedPx,
+    type Direction,
+    type Settings,
+  } from './logic';
+
+  const root = $('[data-tool="led-marquee"]');
+  const { s, locale } = readI18n<Strings['client']>(root);
+  const prefKey = `led-marquee:${locale}`;
+  const defaults = JSON.parse(root.dataset.defaults ?? '{}') as Settings;
+
+  const stage = $('#lm-stage', root);
+  const screen = $('#lm-screen', root);
+  const flip = $('#lm-flip', root);
+  const track = $('#lm-track', root);
+  const textEl = $('#lm-text', root);
+  const rotateBtn = $<HTMLButtonElement>('#lm-rotate', root);
+  const exitBtn = $<HTMLButtonElement>('#lm-exit', root);
+
+  const input = $<HTMLInputElement>('#lm-input', root);
+  const fsBtn = $<HTMLButtonElement>('#lm-fullscreen', root);
+  const copyBtn = $<HTMLButtonElement>('#lm-copy', root);
+  const copyLabel = $('span', copyBtn);
+  const shareBtn = $<HTMLButtonElement>('#lm-share', root);
+  const dirRadios = $$<HTMLInputElement>('input[name="lm-dir"]', root);
+  const speedInput = $<HTMLInputElement>('#lm-speed', root);
+  const speedOut = $('#lm-speed-out', root);
+  const sizeInput = $<HTMLInputElement>('#lm-size', root);
+  const sizeOut = $('#lm-size-out', root);
+  const dotsBox = $<HTMLInputElement>('#lm-dots', root);
+  const blinkBox = $<HTMLInputElement>('#lm-blink', root);
+  const mirrorBox = $<HTMLInputElement>('#lm-mirror', root);
+  const contrastEl = $('#lm-contrast', root);
+  const palettes = (['fg', 'bg'] as const).map((key) => ({
+    key,
+    radios: $$<HTMLInputElement>(`input[name="lm-${key}"]`, root),
+    custom: $(`#lm-${key}-custom`, root),
+    picker: $<HTMLInputElement>(`#lm-${key}-custom input`, root),
+  }));
+
+  // A shared link wins over the last saved sign; it is only saved once the visitor edits it.
+  let settings: Settings = decodeShare(location.hash, defaults) ?? normalizeSettings(loadPref<unknown>(prefKey, null), defaults);
+
+  /* ---------- Form ---------- */
+  function writeForm() {
+    input.value = settings.text;
+    for (const radio of dirRadios) radio.checked = radio.value === settings.dir;
+    speedInput.value = String(settings.speed);
+    sizeInput.value = String(settings.size);
+    dotsBox.checked = settings.dots;
+    blinkBox.checked = settings.blink;
+    mirrorBox.checked = settings.mirror;
+  }
+
+  function update(patch: Partial<Settings>) {
+    settings = normalizeSettings({ ...settings, ...patch }, defaults);
+    savePref(prefKey, settings);
+    render();
+  }
+
+  function syncPalettes() {
+    for (const p of palettes) {
+      const value = settings[p.key];
+      let preset = false;
+      for (const radio of p.radios) {
+        radio.checked = radio.value === value;
+        preset ||= radio.checked;
+      }
+      p.custom.classList.toggle('is-on', !preset);
+      p.custom.style.setProperty('--c', value);
+      if (p.picker.value !== value) p.picker.value = value;
+    }
+  }
+
+  /* ---------- Sign ---------- */
+  let full = false;
+  let flipped = false;
+  let boxW = 0;
+  let boxH = 0;
+  let textW = 0;
+  let travelled = 0;
+  let lastTime = 0;
+  let raf = 0;
+  let onScreen = true;
+
+  function render() {
+    textEl.textContent = settings.text;
+    // Colors passed normalizeColor(), so only '#rrggbb' ever reaches CSS.
+    stage.style.setProperty('--lm-fg', settings.fg);
+    stage.style.setProperty('--lm-bg', settings.bg);
+    screen.classList.toggle('is-dots', settings.dots);
+    flip.classList.toggle('is-blink', settings.blink);
+    flip.classList.toggle('is-mirror', settings.mirror);
+    speedInput.disabled = settings.dir === 'static';
+    speedOut.textContent = String(settings.speed);
+    sizeOut.textContent = settings.size >= 100 ? s.fill : t(s.percent, { n: settings.size });
+    contrastEl.hidden = contrastRatio(settings.fg, settings.bg) >= MIN_CONTRAST;
+    syncPalettes();
+    measure();
+    schedule();
+  }
+
+  /** Box size and rotation; runs on resize and when entering or leaving full screen. */
+  function layout() {
+    const w = stage.clientWidth;
+    const h = stage.clientHeight;
+    if (!w || !h) return;
+    const deg = rotationFor(w, h, full, flipped);
+    const sideways = deg % 180 !== 0;
+    boxW = sideways ? h : w;
+    boxH = sideways ? w : h;
+    screen.classList.toggle('is-rotated', deg !== 0);
+    screen.style.width = deg ? `${boxW}px` : '';
+    screen.style.height = deg ? `${boxH}px` : '';
+    screen.style.transform = deg ? `translate(-50%, -50%) rotate(${deg}deg)` : '';
+    measure();
+  }
+
+  /** Font size and text width; runs when the text, size or box changes (never per frame). */
+  function measure() {
+    if (!boxH) return;
+    const isStatic = settings.dir === 'static';
+    let font = fontSizeFor(boxH, settings.size);
+    track.classList.toggle('is-static', isStatic);
+    if (isStatic) {
+      // Static text spans the box and wraps; find the largest size that still fits.
+      // scrollWidth, because an unbreakable word overflows the max-width instead of widening the span.
+      const maxW = boxW * STATIC_MARGIN;
+      const maxH = boxH * STATIC_MARGIN;
+      const fits = (f: number) => {
+        track.style.fontSize = `${f}px`;
+        return textEl.scrollWidth <= maxW + 0.5 && textEl.offsetHeight <= maxH;
+      };
+      textEl.style.maxWidth = `${maxW}px`;
+      textEl.style.wordBreak = 'keep-all';
+      const atSpaces = fitFont(font, fits);
+      textEl.style.wordBreak = 'normal';
+      const anywhere = atSpaces < font ? fitFont(font, fits) : atSpaces;
+      const wrapAnywhere = preferWrapAnywhere(atSpaces, anywhere);
+      textEl.style.wordBreak = wrapAnywhere ? 'normal' : 'keep-all';
+      font = wrapAnywhere ? anywhere : atSpaces;
+      track.style.fontSize = `${font}px`;
+      textW = boxW;
+    } else {
+      textEl.style.maxWidth = '';
+      textEl.style.wordBreak = '';
+      track.style.fontSize = `${font}px`;
+      textW = track.offsetWidth;
+    }
+    screen.style.setProperty('--lm-dot', `${dotPitch(font)}px`);
+    place();
+    stage.classList.add('is-ready');
+  }
+
+  function place() {
+    const x = settings.dir === 'static' ? 0 : scrollX(travelled, boxW, textW, settings.dir);
+    track.style.transform = `translate3d(${x.toFixed(2)}px, 0, 0)`;
+  }
+
+  function tick(now: number) {
+    raf = 0;
+    // Clamp the step so a dropped frame or a wake-up never makes the text jump.
+    const dt = lastTime ? Math.min(now - lastTime, 64) : 0;
+    lastTime = now;
+    travelled = (travelled + (speedPx(settings.speed, boxH) * dt) / 1000) % Math.max(1, boxW + textW);
+    place();
+    schedule();
+  }
+
+  function schedule() {
+    const moving = settings.dir !== 'static' && (onScreen || full) && document.visibilityState === 'visible' && boxW > 0;
+    if (moving && !raf) raf = requestAnimationFrame(tick);
+    if (!moving) {
+      if (raf) cancelAnimationFrame(raf);
+      raf = 0;
+      lastTime = 0;
+    }
+  }
+
+  /** In the preview, start with the text already in view near the left edge. */
+  function restart() {
+    const x = boxW * 0.08;
+    travelled = settings.dir === 'left' ? boxW - x : x + textW;
+    lastTime = 0;
+    place();
+  }
+
+  /* ---------- Full screen + keep the screen awake ---------- */
+  let wakeLock: WakeLockSentinel | null = null;
+  let uiTimer = 0;
+
+  async function keepAwake(on: boolean) {
+    try {
+      if (on && !wakeLock && 'wakeLock' in navigator) {
+        wakeLock = await navigator.wakeLock.request('screen');
+        wakeLock.addEventListener('release', () => (wakeLock = null));
+      } else if (!on && wakeLock) {
+        await wakeLock.release();
+        wakeLock = null;
+      }
+    } catch {
+      /* not allowed (battery saver, unsupported); the sign still works */
+    }
+  }
+
+  function showUi() {
+    stage.classList.add('show-ui');
+    window.clearTimeout(uiTimer);
+    uiTimer = window.setTimeout(hideUi, 3500);
+  }
+
+  function hideUi() {
+    window.clearTimeout(uiTimer);
+    stage.classList.remove('show-ui');
+  }
+
+  // Android and desktop use the Fullscreen API; iPhone Safari has none for elements,
+  // so the stage then covers the page as a fixed layer instead.
+  type WebkitDoc = Document & { webkitFullscreenElement?: Element; webkitFullscreenEnabled?: boolean; webkitExitFullscreen?: () => void };
+  type WebkitEl = HTMLElement & { webkitRequestFullscreen?: () => void };
+  const doc = document as WebkitDoc;
+  const native = () => (doc.fullscreenElement ?? doc.webkitFullscreenElement) === stage;
+
+  async function enterFull() {
+    const el = stage as WebkitEl;
+    full = true;
+    flipped = false;
+    travelled = 0;
+    lastTime = 0;
+    stage.classList.add('is-full');
+    showUi();
+    void keepAwake(true);
+    try {
+      // Request first, while the click still counts as a user gesture.
+      if (doc.fullscreenEnabled && el.requestFullscreen) return void (await el.requestFullscreen({ navigationUI: 'hide' }));
+      if (doc.webkitFullscreenEnabled && el.webkitRequestFullscreen) return void el.webkitRequestFullscreen();
+    } catch {
+      /* fall through to the fixed layer */
+    } finally {
+      layout();
+      schedule();
+    }
+    stage.classList.add('is-overlay');
+    document.documentElement.classList.add('lm-lock');
+    layout();
+  }
+
+  function leaveFull() {
+    if (!full) return;
+    full = false;
+    flipped = false;
+    stage.classList.remove('is-full', 'is-overlay');
+    document.documentElement.classList.remove('lm-lock');
+    hideUi();
+    void keepAwake(false);
+    layout();
+    restart();
+    schedule();
+  }
+
+  function exitFull() {
+    if (!native()) return leaveFull();
+    if (document.exitFullscreen) document.exitFullscreen().catch(leaveFull);
+    else doc.webkitExitFullscreen?.();
+  }
+
+  fsBtn.addEventListener('click', () => void enterFull());
+  exitBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    exitFull();
+  });
+  rotateBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    flipped = !flipped;
+    layout();
+    showUi();
+  });
+  stage.addEventListener('click', () => {
+    if (!full) return;
+    if (stage.classList.contains('show-ui')) hideUi();
+    else showUi();
+  });
+  for (const type of ['fullscreenchange', 'webkitfullscreenchange']) {
+    document.addEventListener(type, () => {
+      if (full && !native() && !stage.classList.contains('is-overlay')) leaveFull();
+    });
+  }
+  document.addEventListener('keydown', (e) => {
+    if (!full) return;
+    // Browsers usually handle Esc in native full screen themselves; this covers the fixed layer and the rest.
+    if (e.key === 'Escape') exitFull();
+    else if (e.key === 'Tab') showUi();
+  });
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && full) void keepAwake(true);
+    schedule();
+  });
+
+  /* ---------- Share ---------- */
+  const shareUrl = () => `${location.origin}${location.pathname}#${encodeShare(settings)}`;
+  let copyTimer = 0;
+
+  copyBtn.addEventListener('click', async () => {
+    if (!(await copyText(shareUrl()))) return;
+    const original = copyBtn.dataset.label ?? copyLabel.textContent ?? '';
+    copyBtn.dataset.label = original;
+    copyLabel.textContent = s.copied;
+    copyBtn.classList.add('is-done');
+    window.clearTimeout(copyTimer);
+    copyTimer = window.setTimeout(() => {
+      copyLabel.textContent = original;
+      copyBtn.classList.remove('is-done');
+    }, 1600);
+  });
+
+  if (typeof navigator.share === 'function') {
+    shareBtn.hidden = false;
+    shareBtn.addEventListener('click', () => {
+      navigator.share({ title: s.shareTitle, url: shareUrl() }).catch(() => {
+        /* dismissed */
+      });
+    });
+  }
+
+  // Pasting another shared link into the same tab only changes the hash.
+  window.addEventListener('hashchange', () => {
+    const shared = decodeShare(location.hash, defaults);
+    if (!shared) return;
+    settings = shared;
+    writeForm();
+    render();
+  });
+
+  /* ---------- Events ---------- */
+  input.addEventListener('input', () => update({ text: input.value }));
+  for (const radio of dirRadios) {
+    radio.addEventListener('change', () => {
+      update({ dir: radio.value as Direction });
+      restart();
+    });
+  }
+  speedInput.addEventListener('input', () => update({ speed: Number(speedInput.value) }));
+  sizeInput.addEventListener('input', () => update({ size: Number(sizeInput.value) }));
+  dotsBox.addEventListener('change', () => update({ dots: dotsBox.checked }));
+  blinkBox.addEventListener('change', () => update({ blink: blinkBox.checked }));
+  mirrorBox.addEventListener('change', () => update({ mirror: mirrorBox.checked }));
+  for (const p of palettes) {
+    const setColor = (value: string) => update(p.key === 'fg' ? { fg: value } : { bg: value });
+    for (const radio of p.radios) radio.addEventListener('change', () => setColor(radio.value));
+    p.picker.addEventListener('input', () => setColor(p.picker.value));
+  }
+
+  new ResizeObserver(() => layout()).observe(stage);
+  new IntersectionObserver(([entry]) => {
+    onScreen = entry.isIntersecting;
+    schedule();
+  }).observe(stage);
+  void document.fonts?.ready.then(() => measure());
+
+  writeForm();
+  render();
+  layout();
+  restart();
+</script>
+
+<style>
+  /* ---------- The sign ---------- */
+  .lm-stage {
+    position: relative;
+    aspect-ratio: 844 / 390;
+    overflow: hidden;
+    border-radius: var(--radius);
+    background: var(--lm-bg);
+    color: var(--lm-fg);
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .lm-screen {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+  }
+  .lm-screen.is-rotated {
+    inset: auto;
+    top: 50%;
+    left: 50%;
+  }
+  .lm-flip {
+    position: absolute;
+    inset: 0;
+  }
+  .lm-flip.is-mirror {
+    transform: scaleX(-1);
+  }
+  .lm-flip.is-blink {
+    animation: lm-blink 1s step-end infinite;
+  }
+  @keyframes lm-blink {
+    50% {
+      opacity: 0;
+    }
+  }
+  .lm-track {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    display: flex;
+    align-items: center;
+    width: max-content;
+    font-family: var(--display);
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: 0.02em;
+    white-space: pre;
+    visibility: hidden;
+    will-change: transform;
+  }
+  .lm-stage.is-ready .lm-track {
+    visibility: visible;
+  }
+  .lm-track.is-static {
+    right: 0;
+    width: auto;
+    justify-content: center;
+    line-height: 1.08;
+    text-align: center;
+    white-space: pre-wrap;
+    overflow-wrap: normal;
+  }
+  /* LED look: faint unlit dots under the text, and a mask of round holes on top of it. */
+  .lm-screen.is-dots {
+    background-image: radial-gradient(
+      circle closest-side,
+      color-mix(in srgb, var(--lm-fg) 14%, var(--lm-bg)) 70%,
+      transparent 78%
+    );
+    background-size: var(--lm-dot) var(--lm-dot);
+  }
+  .lm-dots {
+    position: absolute;
+    inset: 0;
+    display: none;
+    pointer-events: none;
+    background-image: radial-gradient(circle closest-side, transparent 70%, var(--lm-bg) 80%);
+    background-size: var(--lm-dot) var(--lm-dot);
+  }
+  .lm-screen.is-dots .lm-dots {
+    display: block;
+  }
+
+  /* ---------- Full screen (native, or a fixed layer on iPhone) ---------- */
+  .lm-stage.is-full {
+    width: 100%;
+    height: 100%;
+    aspect-ratio: auto;
+    border-radius: 0;
+    cursor: none;
+    touch-action: none;
+  }
+  .lm-stage.is-full.show-ui {
+    cursor: auto;
+  }
+  .lm-stage.is-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    width: 100vw;
+    height: 100dvh;
+  }
+  :global(html.lm-lock),
+  :global(html.lm-lock body) {
+    overflow: hidden;
+  }
+  .lm-controls {
+    display: none;
+  }
+  .lm-stage.is-full .lm-controls {
+    position: absolute;
+    top: max(12px, env(safe-area-inset-top));
+    right: max(12px, env(safe-area-inset-right));
+    left: max(12px, env(safe-area-inset-left));
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    opacity: 0;
+    visibility: hidden;
+    transition:
+      opacity 0.2s,
+      visibility 0.2s;
+  }
+  .lm-stage.is-full.show-ui .lm-controls {
+    opacity: 1;
+    visibility: visible;
+  }
+  .lm-tip {
+    margin: 0 auto 0 0;
+    padding: 6px 12px;
+    border-radius: 999px;
+    background: rgb(0 0 0 / 0.6);
+    color: #fff;
+    font-size: 14px;
+    line-height: 1.4;
+  }
+  .lm-ctl {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 44px;
+    padding: 8px 16px;
+    border: 1px solid rgb(255 255 255 / 0.4);
+    border-radius: 999px;
+    background: rgb(0 0 0 / 0.7);
+    color: #fff;
+    font: inherit;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .lm-ctl:hover {
+    background: rgb(0 0 0 / 0.85);
+  }
+
+  /* ---------- Form ---------- */
+  .lm-input {
+    font-size: 18px !important;
+  }
+  .lm-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .lm-actions .btn {
+    flex: 1 1 auto;
+  }
+  .lm-actions :global(svg),
+  .lm-ctl :global(svg) {
+    flex: none;
+  }
+  .lm-go {
+    flex: 1 1 100% !important;
+    min-height: 48px;
+    font-size: 16px;
+  }
+  @media (min-width: 640px) {
+    .lm-actions .btn,
+    .lm-go {
+      flex: 0 0 auto !important;
+    }
+  }
+  .lm-hint {
+    margin: -6px 0 0;
+  }
+  .lm-options {
+    display: grid;
+    gap: 18px;
+    padding: 16px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+  }
+  .lm-options .seg {
+    justify-self: start;
+  }
+  /* One row of swatches that shrink to fit narrow phones. */
+  .lm-swatches {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(0, 34px);
+    gap: 7px;
+  }
+  .lm-swatch {
+    position: relative;
+    aspect-ratio: 1;
+    cursor: pointer;
+  }
+  .lm-swatch input {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    opacity: 0;
+    cursor: pointer;
+  }
+  .lm-swatch span {
+    display: block;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    background: var(--c);
+    box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.16);
+    pointer-events: none;
+  }
+  .lm-swatch input:checked + span,
+  .lm-custom.is-on span {
+    box-shadow:
+      inset 0 0 0 1px rgb(0 0 0 / 0.16),
+      0 0 0 2px var(--surface),
+      0 0 0 4px var(--text);
+  }
+  .lm-swatch input:focus-visible + span {
+    outline: 2px solid var(--accent);
+    outline-offset: 4px;
+  }
+  .lm-custom span {
+    background: conic-gradient(#ff2a2a, #ffe100, #2bff5e, #22e4ff, #2f6bff, #ff4fd1, #ff2a2a);
+  }
+  .lm-custom.is-on span {
+    background: var(--c);
+  }
+  .lm-range-label {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .lm-range-label output {
+    font-variant-numeric: tabular-nums;
+    color: var(--text);
+  }
+  input[type='range']:disabled {
+    opacity: 0.4;
+  }
+  .lm-toggles {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px 22px;
+  }
+  .lm-options .notice {
+    margin: 0;
+  }
+</style>
