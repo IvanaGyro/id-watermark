@@ -1,0 +1,256 @@
+---
+// One scratch card: title and sender above, the hidden face, and the canvas layer on top.
+// Used twice by Tool.astro: the recipient view and the maker's live preview.
+import Icon from '../../components/Icon.astro';
+
+interface Props {
+  /** Prefix for element ids: 'r' (recipient) or 'p' (preview). */
+  id: string;
+  canvasAria: string;
+  /** Use a smaller heading in the preview. */
+  compact?: boolean;
+}
+const { id, canvasAria, compact = false } = Astro.props;
+const Heading = compact ? 'p' : 'h2';
+---
+
+<div class:list={['sc-stage', { 'is-compact': compact }]} id={`sc-${id}-stage`}>
+  <div class="sc-head">
+    <Heading class="sc-title" id={`sc-${id}-title`}></Heading>
+    <p class="sc-from" id={`sc-${id}-from`} hidden></p>
+  </div>
+  <div class="sc-card" id={`sc-${id}-card`} data-theme="cream">
+    <div class="sc-face" id={`sc-${id}-face`} aria-hidden="true">
+      <Icon name="Sparkles" size={24} class="sc-deco sc-deco-a" />
+      <Icon name="Sparkles" size={18} class="sc-deco sc-deco-b" />
+      <p class="sc-msg" id={`sc-${id}-msg`}></p>
+    </div>
+    <canvas class="sc-canvas" id={`sc-${id}-canvas`} role="img" aria-label={canvasAria}></canvas>
+  </div>
+  <div class="sc-burst" id={`sc-${id}-burst`} aria-hidden="true"></div>
+</div>
+
+<style>
+  .sc-stage {
+    position: relative;
+    display: grid;
+    gap: 14px;
+    justify-items: center;
+    /* The card's size containment gives it no intrinsic width, so the stage must not shrink-wrap. */
+    width: 100%;
+    text-align: center;
+  }
+  .sc-head {
+    display: grid;
+    gap: 2px;
+    max-width: 100%;
+  }
+  .sc-title {
+    margin: 0;
+    font-family: var(--display);
+    font-size: clamp(22px, 5.6vw, 28px);
+    font-weight: 800;
+    line-height: 1.3;
+    color: var(--text);
+    overflow-wrap: anywhere;
+  }
+  .is-compact .sc-title {
+    font-size: 18px;
+  }
+  .sc-from {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-2);
+    overflow-wrap: anywhere;
+  }
+  .is-compact .sc-from {
+    font-size: 14px;
+  }
+
+  /* ---------- Card ---------- */
+  .sc-card {
+    --sc-bg: #fff7e8;
+    --sc-fg: #4a3410;
+    --sc-accent: #e3a01b;
+    /* Soft circles behind the message. */
+    --sc-blob: color-mix(in oklab, var(--sc-accent) 16%, transparent);
+    position: relative;
+    width: min(100%, 520px);
+    aspect-ratio: 4 / 3;
+    container-type: inline-size;
+    border-radius: 18px;
+    overflow: hidden;
+    /* Neutral until the layer is painted; the face carries the theme colour. */
+    background: var(--surface-2);
+    box-shadow:
+      0 1px 3px rgb(20 20 25 / 0.08),
+      0 10px 24px -12px rgb(20 20 25 / 0.32);
+    isolation: isolate;
+  }
+  .is-compact .sc-card {
+    width: min(100%, 420px);
+  }
+  .sc-card[data-theme='blush'] {
+    --sc-bg: #ffeef3;
+    --sc-fg: #7a1f42;
+    --sc-accent: #e84f86;
+  }
+  .sc-card[data-theme='sky'] {
+    --sc-bg: #e8f3ff;
+    --sc-fg: #143a66;
+    --sc-accent: #2f7de1;
+  }
+  .sc-card[data-theme='mint'] {
+    --sc-bg: #e6f7ef;
+    --sc-fg: #11503a;
+    --sc-accent: #12936a;
+  }
+  .sc-card[data-theme='lilac'] {
+    --sc-bg: #f1ecff;
+    --sc-fg: #3d2a78;
+    --sc-accent: #7a5cf0;
+  }
+  .sc-card[data-theme='night'] {
+    --sc-bg: #1c2046;
+    --sc-fg: #fff3d6;
+    --sc-accent: #f5c24b;
+    --sc-blob: rgb(140 150 255 / 0.12);
+  }
+  .sc-face {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    padding: 7cqw;
+    background:
+      radial-gradient(circle at 12% 18%, var(--sc-blob) 0 14cqw, transparent 14.2cqw),
+      radial-gradient(circle at 90% 88%, var(--sc-blob) 0 18cqw, transparent 18.2cqw),
+      var(--sc-bg);
+    color: var(--sc-fg);
+  }
+  /* Keep the message out of sight until the layer has been painted over it. */
+  .sc-card:has(> .sc-canvas:not([data-painted])):not(.is-revealed) .sc-face {
+    visibility: hidden;
+  }
+  .sc-msg {
+    margin: 0;
+    max-width: 100%;
+    font-family: var(--display);
+    font-size: 8cqw;
+    font-weight: 800;
+    line-height: 1.35;
+    letter-spacing: -0.01em;
+    white-space: pre-line;
+    overflow-wrap: anywhere;
+    text-wrap: balance;
+  }
+  .sc-msg.is-placeholder {
+    font-weight: 600;
+    opacity: 0.55;
+  }
+  .sc-face :global(.sc-deco) {
+    position: absolute;
+    color: var(--sc-accent);
+    opacity: 0.75;
+  }
+  .sc-face :global(.sc-deco-a) {
+    top: 6cqw;
+    right: 7cqw;
+    width: 6cqw;
+    height: 6cqw;
+  }
+  .sc-face :global(.sc-deco-b) {
+    bottom: 6cqw;
+    left: 7cqw;
+    width: 4.5cqw;
+    height: 4.5cqw;
+  }
+  .sc-canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    max-width: none;
+    cursor: grab;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+    -webkit-tap-highlight-color: transparent;
+    transition: opacity 0.6s ease;
+  }
+  .sc-canvas:active {
+    cursor: grabbing;
+  }
+  .sc-canvas.is-gone {
+    opacity: 0;
+    pointer-events: none;
+  }
+  .sc-card.is-revealed {
+    animation: sc-pop 0.55s ease-out;
+  }
+  @keyframes sc-pop {
+    0% {
+      transform: scale(1);
+    }
+    40% {
+      transform: scale(1.035);
+    }
+    100% {
+      transform: scale(1);
+    }
+  }
+
+  /* ---------- Celebration (pieces are created by the script) ---------- */
+  .sc-burst {
+    position: absolute;
+    /* Pieces may fly a little past the card but never widen the page on a phone. */
+    inset: 0 -16px;
+    overflow-x: clip;
+    pointer-events: none;
+  }
+  .sc-burst :global(.sc-piece) {
+    position: absolute;
+    left: 50%;
+    top: 58%;
+    width: 9px;
+    height: 14px;
+    border-radius: 2px;
+    opacity: 0;
+    animation: sc-fly var(--dur, 1.3s) cubic-bezier(0.15, 0.7, 0.35, 1) var(--delay, 0s) forwards;
+  }
+  .sc-burst :global(.sc-piece.is-round) {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+  }
+  .sc-burst :global(.sc-piece.is-thin) {
+    width: 5px;
+    height: 16px;
+  }
+  @keyframes sc-fly {
+    0% {
+      opacity: 1;
+      transform: translate(-50%, -50%) rotate(0deg) scale(0.4);
+    }
+    70% {
+      opacity: 1;
+    }
+    100% {
+      opacity: 0;
+      transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) rotate(var(--rot)) scale(1);
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .sc-canvas {
+      transition: none;
+    }
+    .sc-card.is-revealed {
+      animation: none;
+    }
+    .sc-burst {
+      display: none;
+    }
+  }
+</style>
