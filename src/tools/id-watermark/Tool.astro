@@ -1,0 +1,1456 @@
+---
+import { i18nAttrs, pickStrings, type ToolProps } from '../../i18n/tool';
+import { localePath } from '../../i18n/locales';
+import { formatInteger, t } from '../../i18n/format';
+import Icon from '../../components/Icon.astro';
+import { COLOR_IDS, COLOR_PRESETS, DEFAULT_SETTINGS, LAYOUTS, MASK_MODES, MAX_SIDE_OPTIONS, STYLE_LIMITS, TEMPLATES } from './logic';
+import i18n from './i18n';
+
+type Props = ToolProps;
+const { locale = 'zh-TW' } = Astro.props;
+const s = pickStrings(i18n, locale);
+const d = DEFAULT_SETTINGS;
+const L = STYLE_LIMITS;
+const heicHref = localePath(locale, '/heic-to-jpg/');
+---
+
+<div class="tool" data-tool="id-watermark" data-heic-href={heicHref} {...i18nAttrs(locale, s.client)}>
+  <p class="notice ok iw-privacy">
+    <Icon name="Lock" size={18} strokeWidth={2} class="iw-privacy-icon" />
+    <span><strong>{s.privacyStrong}</strong>{s.privacyText}</span>
+  </p>
+
+  <label class="dropzone iw-drop" id="iw-drop" tabindex="0">
+    <input type="file" id="iw-file" accept="image/*,.heic,.heif" multiple hidden />
+    <Icon name="ImagePlus" size={28} class="iw-drop-icon" />
+    <strong>{s.dropTitle}</strong>
+    <span class="hint">{s.dropHint}</span>
+  </label>
+
+  <p class="hint iw-status" id="iw-status" aria-live="polite" hidden></p>
+  <div class="notice error iw-errors" id="iw-errors" role="alert" hidden></div>
+
+  <ul class="iw-thumbs" id="iw-thumbs" aria-label={s.thumbsAria} hidden></ul>
+
+  <template id="iw-x-icon"><Icon name="X" size={14} strokeWidth={2.25} /></template>
+
+  <div class="iw-workspace">
+    <section class="iw-view" aria-label={s.previewAria}>
+      <div class="iw-stage" id="iw-stage">
+        <div class="iw-frame" id="iw-frame">
+          <canvas id="iw-canvas" width="1" height="1" role="img" aria-label={s.previewAria}></canvas>
+          <div class="iw-drag" id="iw-drag" hidden></div>
+          <span class="iw-badge" id="iw-badge">{s.sampleBadge}</span>
+        </div>
+      </div>
+      <div class="iw-mask-bar">
+        <span class="iw-mask-label" id="iw-mask-label"><Icon name="SquareDashedMousePointer" size={18} />{s.maskLabel}</span>
+        <div class="seg" role="radiogroup" aria-labelledby="iw-mask-label">
+          {
+            MASK_MODES.map((m) => (
+              <label>
+                <input type="radio" name="iw-mask" value={m} checked={m === 'off'} />
+                <span>{s.maskModes[m]}</span>
+              </label>
+            ))
+          }
+        </div>
+        <div class="iw-mask-actions">
+          <button class="btn small" type="button" id="iw-undo" disabled><Icon name="Undo2" size={16} />{s.undo}</button>
+          <button class="btn small ghost" type="button" id="iw-clear-masks" disabled><Icon name="Eraser" size={16} />{s.clearMasks}</button>
+        </div>
+      </div>
+      <p class="hint iw-mask-hint">{s.maskHint}</p>
+    </section>
+
+    <section class="iw-panel iw-text" aria-labelledby="iw-text-h">
+      <h3 class="iw-h" id="iw-text-h"><Icon name="Type" size={18} />{s.textHeading}</h3>
+      <div class="field">
+        <span class="label" id="iw-template-label">{s.templateLabel}</span>
+        <div class="seg" role="radiogroup" aria-labelledby="iw-template-label">
+          {
+            TEMPLATES.map((id) => (
+              <label>
+                <input type="radio" name="iw-template" value={id} checked={id === d.template} />
+                <span>{s.templates[id]}</span>
+              </label>
+            ))
+          }
+        </div>
+      </div>
+      <div class="grid-2" id="iw-fields">
+        <div class="field">
+          <label for="iw-org">{s.orgLabel}</label>
+          <input id="iw-org" type="text" maxlength="40" autocomplete="off" placeholder={s.orgPlaceholder} />
+        </div>
+        <div class="field">
+          <label for="iw-purpose">{s.purposeLabel}</label>
+          <input id="iw-purpose" type="text" maxlength="40" autocomplete="off" placeholder={s.purposePlaceholder} />
+        </div>
+      </div>
+      <div class="field" id="iw-custom-field" hidden>
+        <label for="iw-custom">{s.customLabel}</label>
+        <textarea id="iw-custom" rows="3" maxlength="400" placeholder={s.customPlaceholder}></textarea>
+      </div>
+      <div class="iw-date-row">
+        <label class="check"><input type="checkbox" id="iw-date-on" checked={d.dateOn} /> {s.dateOn}</label>
+        <input type="date" id="iw-date" aria-label={s.dateAria} />
+      </div>
+      <div class="iw-text-out">
+        <span class="iw-text-label">{s.textPreviewLabel}</span>
+        <output id="iw-text-out" for="iw-org iw-purpose iw-custom iw-date"></output>
+      </div>
+    </section>
+
+
+    <section class="iw-panel iw-style" aria-labelledby="iw-style-h">
+      <h3 class="iw-h" id="iw-style-h"><Icon name="Palette" size={18} />{s.styleHeading}</h3>
+      <div class="field">
+        <span class="label" id="iw-layout-label">{s.layoutLabel}</span>
+        <div class="seg" role="radiogroup" aria-labelledby="iw-layout-label">
+          {
+            LAYOUTS.map((id) => (
+              <label>
+                <input type="radio" name="iw-layout" value={id} checked={id === d.layout} />
+                <span>{s.layouts[id]}</span>
+              </label>
+            ))
+          }
+        </div>
+      </div>
+      <div class="field">
+        <span class="label" id="iw-color-label">{s.colorLabel}</span>
+        <div class="iw-swatches" role="radiogroup" aria-labelledby="iw-color-label">
+          {
+            COLOR_IDS.map((id) => (
+              <label class="iw-swatch" title={s.colors[id]}>
+                <input type="radio" name="iw-color" value={COLOR_PRESETS[id]} aria-label={s.colors[id]} checked={COLOR_PRESETS[id] === d.color} />
+                <span class="iw-dot" style={`--c: ${COLOR_PRESETS[id]}`}></span>
+              </label>
+            ))
+          }
+          <label class="iw-swatch iw-swatch-custom" id="iw-custom-swatch" title={s.customColor}>
+            <input type="color" id="iw-color-custom" value="#7c3aed" aria-label={s.customColor} />
+          </label>
+        </div>
+      </div>
+      <div class="grid-2">
+        <div class="field">
+          <label for="iw-size">{s.sizeLabel} <output id="iw-size-out" for="iw-size"></output></label>
+          <input id="iw-size" type="range" min={L.size.min} max={L.size.max} step={L.size.step} value={d.size} />
+        </div>
+        <div class="field">
+          <label for="iw-angle">{s.angleLabel} <output id="iw-angle-out" for="iw-angle"></output></label>
+          <input id="iw-angle" type="range" min={L.angle.min} max={L.angle.max} step={L.angle.step} value={d.angle} />
+        </div>
+        <div class="field">
+          <label for="iw-spacing">{s.spacingLabel} <output id="iw-spacing-out" for="iw-spacing"></output></label>
+          <input id="iw-spacing" type="range" min={L.spacing.min} max={L.spacing.max} step={L.spacing.step} value={d.spacing} />
+        </div>
+        <div class="field">
+          <label for="iw-opacity">{s.opacityLabel} <output id="iw-opacity-out" for="iw-opacity"></output></label>
+          <input id="iw-opacity" type="range" min={L.opacity.min} max={L.opacity.max} step={L.opacity.step} value={d.opacity} />
+        </div>
+      </div>
+      <label class="check"><input type="checkbox" id="iw-outline" checked={d.outline} /> {s.outline}</label>
+      <div>
+        <button class="btn small ghost" type="button" id="iw-reset"><Icon name="RotateCcw" size={16} />{s.resetStyle}</button>
+      </div>
+    </section>
+
+    <section class="iw-panel iw-export" aria-labelledby="iw-export-h">
+      <h3 class="iw-h" id="iw-export-h"><Icon name="Download" size={18} />{s.exportHeading}</h3>
+      <div class="grid-2">
+        <div class="field">
+          <span class="label" id="iw-format-label">{s.formatLabel}</span>
+          <div class="seg" role="radiogroup" aria-labelledby="iw-format-label">
+            <label><input type="radio" name="iw-format" value="jpeg" checked={d.format === 'jpeg'} /><span>JPG</span></label>
+            <label><input type="radio" name="iw-format" value="png" checked={d.format === 'png'} /><span>PNG</span></label>
+          </div>
+        </div>
+        <div class="field">
+          <label for="iw-max">{s.maxSideLabel}</label>
+          <select id="iw-max">
+            {
+              MAX_SIDE_OPTIONS.map((n) => (
+                <option value={n} selected={n === d.maxSide}>
+                  {n === 0 ? s.maxSideOriginal : t(s.maxSideOption, { n: formatInteger(n, locale) })}
+                </option>
+              ))
+            }
+          </select>
+        </div>
+        <div class="field" id="iw-quality-field">
+          <label for="iw-quality">{s.qualityLabel} <output id="iw-quality-out" for="iw-quality"></output></label>
+          <input id="iw-quality" type="range" min={L.quality.min} max={L.quality.max} step={L.quality.step} value={d.quality} />
+        </div>
+      </div>
+      <p class="hint">{s.exportHint}</p>
+      <div class="row">
+        <button class="btn primary" type="button" id="iw-download" disabled><Icon name="Download" size={18} />{s.download}</button>
+        <button class="btn" type="button" id="iw-zip" hidden><Icon name="FileArchive" size={18} />{s.zip}</button>
+        <button class="btn" type="button" id="iw-all" hidden>{s.all}</button>
+        <button class="btn ghost" type="button" id="iw-clear" hidden><Icon name="Trash2" size={16} />{s.clear}</button>
+      </div>
+      <p class="hint iw-result" id="iw-result" aria-live="polite" hidden></p>
+      <p class="notice error" id="iw-export-error" role="alert" hidden></p>
+      <p class="hint">{s.saveHint}</p>
+    </section>
+  </div>
+</div>
+
+<script>
+  import { $, $$, debounce, downloadBlob, loadPref, savePref } from '../../lib/client';
+  import { isHeic, prepareImage } from '../../lib/heic';
+  import { readI18n } from '../../i18n/client';
+  import { formatBytes, formatInteger, formatNumber, t } from '../../i18n/format';
+  import { createZip } from '../pdf-split/zip';
+  import type { Strings } from './i18n';
+  import {
+    DEFAULT_SETTINGS,
+    DEFAULT_STYLE,
+    LINE_HEIGHT,
+    MAX_FILES,
+    centerFontSize,
+    colorIdOf,
+    composeText,
+    encoderQuality,
+    fillTemplate,
+    fitWithin,
+    fontSizePx,
+    formatIsoDate,
+    isImageFile,
+    isUsableRect,
+    mosaicBlock,
+    mosaicGrid,
+    normalizeSettings,
+    opacityFromPercent,
+    outlineColor,
+    outputFilename,
+    outputMime,
+    rectFromPoints,
+    scaleRect,
+    splitLines,
+    tileLayout,
+    toImagePoint,
+    todayIso,
+    uniqueNames,
+    type Mask,
+    type MaskMode,
+    type Point,
+    type PresetId,
+    type Settings,
+  } from './logic';
+
+  interface Decoded {
+    source: CanvasImageSource;
+    width: number;
+    height: number;
+    close: () => void;
+  }
+  interface Item {
+    name: string;
+    /** A file every browser can decode (HEIC already converted to JPEG). */
+    source: Blob;
+    width: number;
+    height: number;
+    /** Downscaled copy for the live preview. */
+    base: HTMLCanvasElement;
+    thumb: HTMLCanvasElement;
+    masks: Mask[];
+    li: HTMLLIElement;
+  }
+
+  const PREVIEW_MAX = 1600;
+  const THUMB_MAX = 200;
+
+  const root = $('[data-tool="id-watermark"]');
+  const { locale, s } = readI18n<Strings['client']>(root);
+  const prefKey = `id-watermark:${locale}`;
+  const heicHref = root.dataset.heicHref ?? '/heic-to-jpg/';
+
+  const drop = $('#iw-drop', root);
+  const fileInput = $<HTMLInputElement>('#iw-file', root);
+  const statusEl = $('#iw-status', root);
+  const errorsEl = $('#iw-errors', root);
+  const thumbs = $<HTMLUListElement>('#iw-thumbs', root);
+  const xIcon = $<HTMLTemplateElement>('#iw-x-icon', root);
+  const stage = $('#iw-stage', root);
+  const frame = $('#iw-frame', root);
+  const canvas = $<HTMLCanvasElement>('#iw-canvas', root);
+  const dragBox = $('#iw-drag', root);
+  const badge = $('#iw-badge', root);
+  const templateRadios = $$<HTMLInputElement>('input[name="iw-template"]', root);
+  const org = $<HTMLInputElement>('#iw-org', root);
+  const purpose = $<HTMLInputElement>('#iw-purpose', root);
+  const fields = $('#iw-fields', root);
+  const customField = $('#iw-custom-field', root);
+  const custom = $<HTMLTextAreaElement>('#iw-custom', root);
+  const dateOn = $<HTMLInputElement>('#iw-date-on', root);
+  const dateInput = $<HTMLInputElement>('#iw-date', root);
+  const textOut = $('#iw-text-out', root);
+  const maskRadios = $$<HTMLInputElement>('input[name="iw-mask"]', root);
+  const undoBtn = $<HTMLButtonElement>('#iw-undo', root);
+  const clearMasksBtn = $<HTMLButtonElement>('#iw-clear-masks', root);
+  const layoutRadios = $$<HTMLInputElement>('input[name="iw-layout"]', root);
+  const colorRadios = $$<HTMLInputElement>('input[name="iw-color"]', root);
+  const colorCustom = $<HTMLInputElement>('#iw-color-custom', root);
+  const customSwatch = $('#iw-custom-swatch', root);
+  const size = $<HTMLInputElement>('#iw-size', root);
+  const angle = $<HTMLInputElement>('#iw-angle', root);
+  const spacing = $<HTMLInputElement>('#iw-spacing', root);
+  const opacity = $<HTMLInputElement>('#iw-opacity', root);
+  const outline = $<HTMLInputElement>('#iw-outline', root);
+  const formatRadios = $$<HTMLInputElement>('input[name="iw-format"]', root);
+  const maxSide = $<HTMLSelectElement>('#iw-max', root);
+  const quality = $<HTMLInputElement>('#iw-quality', root);
+  const qualityField = $('#iw-quality-field', root);
+  const downloadBtn = $<HTMLButtonElement>('#iw-download', root);
+  const zipBtn = $<HTMLButtonElement>('#iw-zip', root);
+  const allBtn = $<HTMLButtonElement>('#iw-all', root);
+  const clearBtn = $<HTMLButtonElement>('#iw-clear', root);
+  const resultEl = $('#iw-result', root);
+  const exportError = $('#iw-export-error', root);
+
+  let items: Item[] = [];
+  let current: Item | null = null;
+  let busy = false;
+  const sample = makeSample();
+
+  // ---------- Settings ----------
+  const checkedValue = (radios: HTMLInputElement[]) => radios.find((r) => r.checked)?.value;
+
+  function currentColor(): string {
+    return checkedValue(colorRadios) ?? colorCustom.value;
+  }
+
+  function readSettings(): Settings {
+    return normalizeSettings({
+      template: checkedValue(templateRadios),
+      org: org.value,
+      purpose: purpose.value,
+      dateOn: dateOn.checked,
+      custom: custom.value,
+      layout: checkedValue(layoutRadios),
+      color: currentColor(),
+      size: Number(size.value),
+      angle: Number(angle.value),
+      spacing: Number(spacing.value),
+      opacity: Number(opacity.value),
+      outline: outline.checked,
+      format: checkedValue(formatRadios),
+      quality: Number(quality.value),
+      maxSide: Number(maxSide.value),
+    });
+  }
+
+  function setRadios(radios: HTMLInputElement[], value: string) {
+    for (const r of radios) r.checked = r.value === value;
+  }
+
+  function applySettings(st: Settings) {
+    setRadios(templateRadios, st.template);
+    org.value = st.org;
+    purpose.value = st.purpose;
+    custom.value = st.custom;
+    dateOn.checked = st.dateOn;
+    setRadios(layoutRadios, st.layout);
+    setColor(st.color);
+    size.value = String(st.size);
+    angle.value = String(st.angle);
+    spacing.value = String(st.spacing);
+    opacity.value = String(st.opacity);
+    outline.checked = st.outline;
+    setRadios(formatRadios, st.format);
+    quality.value = String(st.quality);
+    maxSide.value = String(st.maxSide);
+    syncControls();
+  }
+
+  function setColor(hex: string) {
+    const preset = colorIdOf(hex);
+    for (const r of colorRadios) r.checked = preset !== null && r.value === hex;
+    if (!preset) colorCustom.value = hex;
+    customSwatch.classList.toggle('is-active', !preset);
+  }
+
+  /** Visibility and value labels that follow the settings. */
+  function syncControls() {
+    const st = readSettings();
+    const isCustom = st.template === 'custom';
+    fields.hidden = isCustom;
+    customField.hidden = !isCustom;
+    dateInput.disabled = !st.dateOn;
+    qualityField.hidden = st.format === 'png';
+    $('#iw-size-out', root).textContent = `${formatNumber(st.size, 1, locale)}%`;
+    $('#iw-angle-out', root).textContent = `${formatInteger(st.angle, locale)}°`;
+    $('#iw-spacing-out', root).textContent = `${formatNumber(st.spacing, 1, locale)}×`;
+    $('#iw-opacity-out', root).textContent = `${formatInteger(st.opacity, locale)}%`;
+    $('#iw-quality-out', root).textContent = formatInteger(st.quality, locale);
+  }
+
+  const persist = debounce(() => savePref(prefKey, readSettings()), 300);
+  window.addEventListener('pagehide', () => savePref(prefKey, readSettings()));
+
+  function onSettingsChange() {
+    syncControls();
+    persist();
+    scheduleRender();
+  }
+
+  // ---------- Text ----------
+  function sentence(st: Settings): string {
+    if (st.template === 'custom') return st.custom;
+    return fillTemplate(s.presets[st.template], st);
+  }
+
+  function watermarkLines(st: Settings): string[] {
+    const date = st.dateOn ? (formatIsoDate(dateInput.value, s.dateTemplate, s.months) ?? '') : '';
+    return splitLines(composeText(sentence(st), date, s.dateJoin));
+  }
+
+  // ---------- Drawing ----------
+  const fontSpec = (px: number) => `700 ${px}px ${s.font}`;
+
+  function drawWatermark(ctx: CanvasRenderingContext2D, w: number, h: number, lines: string[], st: Settings) {
+    if (lines.length === 0) return;
+    // Text goes onto its own layer first, so overlapping outline and fill share one uniform opacity.
+    const layer = document.createElement('canvas');
+    layer.width = w;
+    layer.height = h;
+    const g = layer.getContext('2d');
+    if (!g) return;
+    g.textAlign = 'center';
+    g.textBaseline = 'middle';
+    g.lineJoin = 'round';
+    g.fillStyle = st.color;
+    g.strokeStyle = outlineColor(st.color);
+    g.translate(w / 2, h / 2);
+    g.rotate((st.angle * Math.PI) / 180);
+
+    const drawBlock = (cx: number, cy: number, px: number) => {
+      const lineH = px * LINE_HEIGHT;
+      lines.forEach((line, i) => {
+        const y = cy + (i - (lines.length - 1) / 2) * lineH;
+        if (st.outline) g.strokeText(line, cx, y);
+        g.fillText(line, cx, y);
+      });
+    };
+    const widest = () => Math.max(...lines.map((line) => g.measureText(line).width));
+
+    if (st.layout !== 'center') {
+      const px = fontSizePx(w, h, st.size);
+      g.font = fontSpec(px);
+      g.lineWidth = Math.max(1, px * 0.16);
+      const gap = px * st.spacing;
+      const tiles = tileLayout({
+        width: w,
+        height: h,
+        angleDeg: st.angle,
+        cellW: widest(),
+        cellH: px * LINE_HEIGHT * lines.length,
+        gapX: gap * 2,
+        gapY: gap,
+      });
+      for (const p of tiles) drawBlock(p.x, p.y, px);
+    }
+    if (st.layout !== 'tile') {
+      g.font = fontSpec(100);
+      const px = centerFontSize(widest(), lines.length, w, h, st.angle);
+      g.font = fontSpec(px);
+      g.lineWidth = Math.max(1, px * 0.12);
+      if (st.layout === 'both') {
+        // Knock a clean band out of the repeated text so the big line stays readable.
+        const lineH = px * LINE_HEIGHT;
+        const bandW = widest() + px;
+        const bandH = lineH * lines.length + px * 0.4;
+        g.save();
+        g.globalCompositeOperation = 'destination-out';
+        g.fillRect(-bandW / 2, -bandH / 2, bandW, bandH);
+        g.restore();
+      }
+      drawBlock(0, 0, px);
+    }
+
+    ctx.save();
+    ctx.globalAlpha = opacityFromPercent(st.opacity);
+    ctx.drawImage(layer, 0, 0);
+    ctx.restore();
+    layer.width = layer.height = 0;
+  }
+
+  function applyMask(ctx: CanvasRenderingContext2D, mask: Mask, factor: number, w: number, h: number) {
+    const r = scaleRect(mask, factor);
+    if (r.w <= 0 || r.h <= 0) return;
+    if (mask.kind === 'black') {
+      ctx.fillStyle = '#000000';
+      ctx.fillRect(r.x, r.y, r.w, r.h);
+      return;
+    }
+    const { cols, rows } = mosaicGrid(r, mosaicBlock(w, h));
+    const tiny = document.createElement('canvas');
+    tiny.width = cols;
+    tiny.height = rows;
+    const tctx = tiny.getContext('2d');
+    if (!tctx) return;
+    tctx.imageSmoothingEnabled = true;
+    tctx.imageSmoothingQuality = 'high';
+    tctx.drawImage(ctx.canvas, r.x, r.y, r.w, r.h, 0, 0, cols, rows);
+    ctx.save();
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(tiny, 0, 0, cols, rows, r.x, r.y, r.w, r.h);
+    ctx.restore();
+  }
+
+  /** Image → masks → watermark, at any output size. Masks are stored in full-size pixels. */
+  function paint(
+    ctx: CanvasRenderingContext2D,
+    src: CanvasImageSource,
+    w: number,
+    h: number,
+    masks: Mask[],
+    maskFactor: number,
+    lines: string[],
+    st: Settings,
+  ) {
+    ctx.save();
+    if (st.format === 'jpeg') {
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, w, h);
+    } else {
+      ctx.clearRect(0, 0, w, h);
+    }
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(src, 0, 0, w, h);
+    ctx.restore();
+    for (const m of masks) applyMask(ctx, m, maskFactor, w, h);
+    drawWatermark(ctx, w, h, lines, st);
+  }
+
+  // ---------- Preview ----------
+  let frameRequest = 0;
+  function scheduleRender() {
+    if (frameRequest) return;
+    frameRequest = requestAnimationFrame(() => {
+      frameRequest = 0;
+      renderPreview();
+      renderThumbsSoon();
+    });
+  }
+
+  function renderPreview() {
+    const st = readSettings();
+    const lines = watermarkLines(st);
+    const src = current ? current.base : sample;
+    if (canvas.width !== src.width || canvas.height !== src.height) {
+      canvas.width = src.width;
+      canvas.height = src.height;
+    }
+    const ctx = canvas.getContext('2d');
+    if (ctx) paint(ctx, src, src.width, src.height, current?.masks ?? [], current ? src.width / current.width : 1, lines, st);
+    textOut.textContent = lines.length ? lines.join('\n') : s.emptyText;
+    textOut.classList.toggle('is-empty', lines.length === 0);
+    badge.hidden = current !== null;
+    layoutCanvas();
+  }
+
+  function renderThumb(item: Item, st: Settings, lines: string[]) {
+    const ctx = item.thumb.getContext('2d');
+    if (ctx) paint(ctx, item.base, item.thumb.width, item.thumb.height, item.masks, item.thumb.width / item.width, lines, st);
+  }
+
+  const renderThumbsSoon = debounce(() => {
+    const st = readSettings();
+    const lines = watermarkLines(st);
+    for (const item of items) renderThumb(item, st, lines);
+  }, 250);
+
+  /** Fits the preview inside the stage: full width, but never taller than most of the screen. */
+  function layoutCanvas() {
+    const avail = stage.clientWidth;
+    if (!avail) return;
+    const maxH = Math.max(220, Math.min(window.innerHeight * 0.62, 720));
+    let w = avail;
+    let h = (w * canvas.height) / canvas.width;
+    if (h > maxH) {
+      h = maxH;
+      w = (h * canvas.width) / canvas.height;
+    }
+    canvas.style.width = `${Math.round(w)}px`;
+    canvas.style.height = `${Math.round(h)}px`;
+  }
+
+  /** A generic placeholder card (no text, no real ID design) shown before anything is added. */
+  function makeSample(): HTMLCanvasElement {
+    const c = document.createElement('canvas');
+    c.width = 1000;
+    c.height = 640;
+    const g = c.getContext('2d')!;
+    g.fillStyle = '#d5dae1';
+    g.fillRect(0, 0, 1000, 640);
+    const card = new Path2D();
+    card.roundRect(70, 60, 860, 520, 34);
+    g.save();
+    g.shadowColor = 'rgba(20, 24, 38, 0.25)';
+    g.shadowBlur = 30;
+    g.shadowOffsetY = 10;
+    const bg = g.createLinearGradient(70, 60, 930, 580);
+    bg.addColorStop(0, '#f6f8fb');
+    bg.addColorStop(1, '#e4ebf3');
+    g.fillStyle = bg;
+    g.fill(card);
+    g.restore();
+    g.save();
+    g.clip(card);
+    g.fillStyle = '#8fb0cc';
+    g.fillRect(70, 60, 860, 74);
+    g.restore();
+    // Photo box with a silhouette.
+    g.fillStyle = '#c9d3de';
+    g.beginPath();
+    g.roundRect(110, 175, 220, 280, 12);
+    g.fill();
+    g.fillStyle = '#8d99a8';
+    g.beginPath();
+    g.arc(220, 278, 58, 0, Math.PI * 2);
+    g.fill();
+    g.beginPath();
+    g.ellipse(220, 455, 98, 92, 0, Math.PI, 0);
+    g.fill();
+    // Placeholder lines instead of any text.
+    g.fillStyle = '#a3afbd';
+    const bars: [number, number, number][] = [
+      [380, 190, 150],
+      [380, 230, 330],
+      [380, 290, 120],
+      [380, 330, 260],
+      [380, 390, 120],
+      [380, 430, 420],
+    ];
+    for (const [x, y, w] of bars) {
+      g.beginPath();
+      g.roundRect(x, y, w, 18, 9);
+      g.fill();
+    }
+    g.fillStyle = '#7d8a99';
+    g.beginPath();
+    g.roundRect(110, 500, 520, 30, 15);
+    g.fill();
+    return c;
+  }
+
+  // ---------- Loading ----------
+  async function decode(blob: Blob): Promise<Decoded> {
+    if (typeof createImageBitmap === 'function') {
+      try {
+        const bmp = await createImageBitmap(blob, { imageOrientation: 'from-image' });
+        return { source: bmp, width: bmp.width, height: bmp.height, close: () => bmp.close() };
+      } catch {
+        /* fall back to <img> */
+      }
+    }
+    const url = URL.createObjectURL(blob);
+    try {
+      const img = new Image();
+      img.src = url;
+      await img.decode();
+      if (!img.naturalWidth) throw new Error('decode');
+      return { source: img, width: img.naturalWidth, height: img.naturalHeight, close: () => {} };
+    } finally {
+      URL.revokeObjectURL(url);
+    }
+  }
+
+  function scaledCopy(src: CanvasImageSource, width: number, height: number, max: number): HTMLCanvasElement {
+    const fit = fitWithin(width, height, max);
+    const c = document.createElement('canvas');
+    c.width = fit.width;
+    c.height = fit.height;
+    const g = c.getContext('2d');
+    if (!g) throw new Error('canvas');
+    g.imageSmoothingEnabled = true;
+    g.imageSmoothingQuality = 'high';
+    g.drawImage(src, 0, 0, fit.width, fit.height);
+    return c;
+  }
+
+  async function loadItem(file: File): Promise<Item> {
+    const ready = await prepareImage(file);
+    const img = await decode(ready);
+    try {
+      const base = scaledCopy(img.source, img.width, img.height, PREVIEW_MAX);
+      const thumb = scaledCopy(base, base.width, base.height, THUMB_MAX);
+      const item: Item = {
+        name: file.name || 'image.png',
+        source: ready,
+        width: img.width,
+        height: img.height,
+        base,
+        thumb,
+        masks: [],
+        li: document.createElement('li'),
+      };
+      buildThumb(item);
+      return item;
+    } finally {
+      img.close();
+    }
+  }
+
+  function buildThumb(item: Item) {
+    item.li.className = 'iw-thumb-item';
+    const pick = document.createElement('button');
+    pick.type = 'button';
+    pick.className = 'iw-thumb';
+    pick.append(item.thumb);
+    const num = document.createElement('span');
+    num.className = 'iw-thumb-n';
+    pick.append(num);
+    pick.addEventListener('click', () => select(item));
+    const remove = document.createElement('button');
+    remove.type = 'button';
+    remove.className = 'iw-thumb-x';
+    remove.append(xIcon.content.cloneNode(true));
+    remove.addEventListener('click', () => removeItem(item));
+    item.li.append(pick, remove);
+  }
+
+  function errorLine(text: string) {
+    const p = document.createElement('p');
+    p.textContent = text;
+    return p;
+  }
+
+  function heicLine(name: string) {
+    const p = document.createElement('p');
+    const a = document.createElement('a');
+    a.href = heicHref;
+    a.textContent = s.heicLink;
+    p.append(t(s.heicBefore, { name }), a, s.heicAfter);
+    return p;
+  }
+
+  function showErrors(lines: HTMLElement[]) {
+    errorsEl.replaceChildren(...lines);
+    errorsEl.hidden = lines.length === 0;
+  }
+
+  async function addFiles(files: File[]) {
+    if (files.length === 0) return;
+    const images = files.filter((f) => isImageFile(f.type, f.name));
+    const room = Math.max(0, MAX_FILES - items.length);
+    const take = images.slice(0, room);
+    const problems: HTMLElement[] = [];
+    if (images.length < files.length) problems.push(errorLine(t(s.skipped, { n: formatInteger(files.length - images.length, locale) })));
+    if (take.length < images.length) problems.push(errorLine(t(s.tooMany, { max: MAX_FILES })));
+    statusEl.textContent = s.loading;
+    statusEl.hidden = take.length === 0;
+    let first: Item | null = null;
+    for (const file of take) {
+      try {
+        const item = await loadItem(file);
+        items.push(item);
+        thumbs.append(item.li);
+        first ??= item;
+      } catch {
+        const name = file.name || 'image';
+        problems.push(isHeic(file.type, file.name) ? heicLine(name) : errorLine(t(s.readError, { name })));
+      }
+    }
+    statusEl.hidden = true;
+    showErrors(problems);
+    if (first) select(first);
+    else updateUi();
+  }
+
+  function select(item: Item) {
+    current = item;
+    updateUi();
+    scheduleRender();
+  }
+
+  function removeItem(item: Item) {
+    const index = items.indexOf(item);
+    if (index < 0) return;
+    items.splice(index, 1);
+    item.li.remove();
+    item.base.width = item.base.height = 0;
+    if (current === item) current = items[Math.min(index, items.length - 1)] ?? null;
+    updateUi();
+    scheduleRender();
+  }
+
+  function clearAll() {
+    for (const item of items) {
+      item.li.remove();
+      item.base.width = item.base.height = 0;
+    }
+    items = [];
+    current = null;
+    showErrors([]);
+    resultEl.hidden = true;
+    updateUi();
+    scheduleRender();
+  }
+
+  function updateUi() {
+    const has = items.length > 0;
+    thumbs.hidden = !has;
+    drop.classList.toggle('is-compact', has);
+    items.forEach((item, i) => {
+      const [pick, remove] = item.li.children as unknown as [HTMLButtonElement, HTMLButtonElement];
+      const active = item === current;
+      pick.setAttribute('aria-pressed', String(active));
+      pick.setAttribute('aria-label', t(s.thumbLabel, { n: i + 1, name: item.name }));
+      pick.title = item.name;
+      (pick.querySelector('.iw-thumb-n') as HTMLElement).textContent = String(i + 1);
+      remove.setAttribute('aria-label', t(s.remove, { name: item.name }));
+      remove.title = t(s.remove, { name: item.name });
+    });
+    for (const r of maskRadios) r.disabled = !has;
+    updateMaskUi();
+    downloadBtn.disabled = busy || !current;
+    zipBtn.hidden = allBtn.hidden = items.length < 2;
+    zipBtn.disabled = allBtn.disabled = busy;
+    clearBtn.hidden = !has;
+  }
+
+  // ---------- Masking ----------
+  function maskMode(): MaskMode {
+    return current ? ((checkedValue(maskRadios) as MaskMode | undefined) ?? 'off') : 'off';
+  }
+
+  function updateMaskUi() {
+    const mode = maskMode();
+    frame.classList.toggle('is-masking', mode !== 'off');
+    const count = current?.masks.length ?? 0;
+    undoBtn.disabled = count === 0;
+    clearMasksBtn.disabled = count === 0;
+  }
+
+  function placeDragBox(a: Point, b: Point) {
+    if (!current) return;
+    const r = rectFromPoints(a, b, current.width, current.height);
+    dragBox.style.left = `${(r.x / current.width) * 100}%`;
+    dragBox.style.top = `${(r.y / current.height) * 100}%`;
+    dragBox.style.width = `${(r.w / current.width) * 100}%`;
+    dragBox.style.height = `${(r.h / current.height) * 100}%`;
+  }
+
+  frame.addEventListener('pointerdown', (e) => {
+    const item = current;
+    const mode = maskMode();
+    if (!item || mode === 'off' || (e.pointerType === 'mouse' && e.button !== 0)) return;
+    e.preventDefault();
+    const box = canvas.getBoundingClientRect();
+    const at = (ev: PointerEvent) => toImagePoint(ev.clientX, ev.clientY, box, item.width, item.height);
+    const start = at(e);
+    let end = start;
+    frame.setPointerCapture(e.pointerId);
+    dragBox.dataset.kind = mode;
+    dragBox.hidden = false;
+    placeDragBox(start, end);
+    const move = (ev: PointerEvent) => {
+      end = at(ev);
+      placeDragBox(start, end);
+    };
+    const finish = (ev: PointerEvent) => {
+      frame.removeEventListener('pointermove', move);
+      frame.removeEventListener('pointerup', finish);
+      frame.removeEventListener('pointercancel', finish);
+      dragBox.hidden = true;
+      if (ev.type === 'pointercancel') return;
+      const rect = rectFromPoints(start, end, item.width, item.height);
+      // Ignore taps: anything smaller than ~6 screen pixels.
+      if (!isUsableRect(rect, (6 * item.width) / Math.max(1, box.width))) return;
+      item.masks.push({ ...rect, kind: mode as Mask['kind'] });
+      updateMaskUi();
+      scheduleRender();
+    };
+    frame.addEventListener('pointermove', move);
+    frame.addEventListener('pointerup', finish);
+    frame.addEventListener('pointercancel', finish);
+  });
+
+  function undoMask() {
+    if (!current?.masks.length) return;
+    current.masks.pop();
+    updateMaskUi();
+    scheduleRender();
+  }
+
+  undoBtn.addEventListener('click', undoMask);
+  clearMasksBtn.addEventListener('click', () => {
+    if (!current) return;
+    current.masks = [];
+    updateMaskUi();
+    scheduleRender();
+  });
+  maskRadios.forEach((r) => r.addEventListener('change', updateMaskUi));
+  document.addEventListener('keydown', (e) => {
+    if (!(e.ctrlKey || e.metaKey) || e.shiftKey || e.key.toLowerCase() !== 'z') return;
+    if ((e.target as HTMLElement | null)?.closest('input, textarea, select, [contenteditable]')) return;
+    if (!current?.masks.length) return;
+    e.preventDefault();
+    undoMask();
+  });
+
+  // ---------- Export ----------
+  function toBlob(c: HTMLCanvasElement, type: string, q?: number): Promise<Blob> {
+    return new Promise((resolve, reject) => c.toBlob((b) => (b ? resolve(b) : reject(new Error('encode'))), type, q));
+  }
+
+  async function exportItem(item: Item, st: Settings, lines: string[]) {
+    const img = await decode(item.source);
+    const out = document.createElement('canvas');
+    try {
+      const fit = fitWithin(img.width, img.height, st.maxSide);
+      out.width = fit.width;
+      out.height = fit.height;
+      const ctx = out.getContext('2d');
+      if (!ctx) throw new Error('canvas');
+      paint(ctx, img.source, fit.width, fit.height, item.masks, fit.width / item.width, lines, st);
+      const blob = await toBlob(out, outputMime(st.format), encoderQuality(st.format, st.quality));
+      return { blob, name: outputFilename(item.name, st.format), width: fit.width, height: fit.height };
+    } finally {
+      img.close();
+      out.width = out.height = 0;
+    }
+  }
+
+  function setBusy(on: boolean, label = '') {
+    busy = on;
+    updateUi();
+    if (on) {
+      resultEl.textContent = label;
+      resultEl.hidden = false;
+    }
+  }
+
+  /** Shared wrapper: validates the text, runs the export, reports success or failure. */
+  async function run(targets: Item[], deliver: (results: Awaited<ReturnType<typeof exportItem>>[]) => Promise<void> | void) {
+    if (busy || targets.length === 0) return;
+    exportError.hidden = true;
+    const st = readSettings();
+    const lines = watermarkLines(st);
+    if (lines.length === 0) {
+      exportError.textContent = s.emptyText;
+      exportError.hidden = false;
+      return;
+    }
+    setBusy(true, s.working);
+    try {
+      const results: Awaited<ReturnType<typeof exportItem>>[] = [];
+      for (const [i, item] of targets.entries()) {
+        if (targets.length > 1) resultEl.textContent = t(s.progress, { i: i + 1, n: targets.length });
+        results.push(await exportItem(item, st, lines));
+      }
+      await deliver(results);
+      const total = results.reduce((sum, r) => sum + r.blob.size, 0);
+      resultEl.textContent =
+        results.length === 1
+          ? t(s.done, { name: results[0].name, width: results[0].width, height: results[0].height, size: formatBytes(total, locale) })
+          : t(s.doneMany, { n: results.length, size: formatBytes(total, locale) });
+    } catch {
+      resultEl.hidden = true;
+      exportError.textContent = s.exportError;
+      exportError.hidden = false;
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  downloadBtn.addEventListener('click', () => {
+    if (current) void run([current], ([r]) => downloadBlob(r.blob, r.name));
+  });
+  zipBtn.addEventListener('click', () =>
+    void run(items.slice(), async (results) => {
+      resultEl.textContent = s.zipping;
+      const names = uniqueNames(results.map((r) => r.name));
+      const entries = await Promise.all(results.map(async (r, i) => ({ name: names[i], data: new Uint8Array(await r.blob.arrayBuffer()) })));
+      downloadBlob(new Blob([createZip(entries)], { type: 'application/zip' }), 'id-watermark.zip');
+    }),
+  );
+  allBtn.addEventListener('click', () =>
+    void run(items.slice(), async (results) => {
+      for (const r of results) {
+        downloadBlob(r.blob, r.name);
+        await new Promise((done) => setTimeout(done, 400));
+      }
+    }),
+  );
+  clearBtn.addEventListener('click', clearAll);
+
+  // ---------- Wiring ----------
+  fileInput.addEventListener('change', () => {
+    const files = Array.from(fileInput.files ?? []);
+    fileInput.value = '';
+    void addFiles(files);
+  });
+  drop.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      fileInput.click();
+    }
+  });
+  drop.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    drop.classList.add('is-over');
+  });
+  drop.addEventListener('dragleave', () => drop.classList.remove('is-over'));
+  drop.addEventListener('drop', (e) => {
+    e.preventDefault();
+    drop.classList.remove('is-over');
+    void addFiles(Array.from(e.dataTransfer?.files ?? []));
+  });
+  document.addEventListener('paste', (e) => {
+    if ((e.target as HTMLElement | null)?.closest('input, textarea, [contenteditable]')) return;
+    const files = Array.from(e.clipboardData?.files ?? []).filter((f) => f.type.startsWith('image/'));
+    if (files.length === 0) return;
+    e.preventDefault();
+    const stamp = Date.now();
+    void addFiles(
+      files.map((f, i) =>
+        f.name && f.name !== 'image.png' ? f : new File([f], `paste-${stamp}${i ? `-${i + 1}` : ''}.${f.type.split('/')[1] || 'png'}`, { type: f.type }),
+      ),
+    );
+  });
+
+  let lastPreset: PresetId = 'apply';
+  templateRadios.forEach((r) =>
+    r.addEventListener('change', () => {
+      if (!r.checked) return;
+      // Start custom text from the preset sentence in use, so small edits are easy.
+      if (r.value === 'custom') {
+        if (!custom.value.trim()) custom.value = fillTemplate(s.presets[lastPreset], readSettings());
+      } else {
+        lastPreset = r.value as PresetId;
+      }
+      onSettingsChange();
+    }),
+  );
+  for (const el of [org, purpose, custom, dateInput, size, angle, spacing, opacity]) el.addEventListener('input', onSettingsChange);
+  for (const el of [dateOn, outline, maxSide]) el.addEventListener('change', onSettingsChange);
+  for (const r of [...layoutRadios, ...formatRadios]) r.addEventListener('change', onSettingsChange);
+  colorRadios.forEach((r) =>
+    r.addEventListener('change', () => {
+      customSwatch.classList.remove('is-active');
+      onSettingsChange();
+    }),
+  );
+  colorCustom.addEventListener('input', () => {
+    setColor(colorCustom.value);
+    onSettingsChange();
+  });
+  $('#iw-reset', root).addEventListener('click', () => {
+    applySettings({ ...readSettings(), ...DEFAULT_STYLE });
+    persist();
+    scheduleRender();
+  });
+
+  if (typeof ResizeObserver !== 'undefined') new ResizeObserver(() => layoutCanvas()).observe(stage);
+  else window.addEventListener('resize', layoutCanvas);
+
+  dateInput.value = todayIso(new Date());
+  {
+    const saved = normalizeSettings(loadPref<unknown>(prefKey, null), DEFAULT_SETTINGS);
+    if (saved.template !== 'custom') lastPreset = saved.template;
+    applySettings(saved);
+  }
+  updateUi();
+  renderPreview();
+</script>
+
+<style>
+  .tool {
+    container-type: inline-size;
+  }
+  .iw-privacy {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    margin: 0;
+  }
+  .iw-privacy :global(.iw-privacy-icon) {
+    flex: none;
+    margin-top: 2px;
+  }
+  .iw-drop {
+    min-height: 136px;
+    padding: 18px 16px;
+  }
+  .iw-drop :global(.iw-drop-icon) {
+    color: var(--accent);
+  }
+  .iw-drop.is-compact {
+    min-height: 0;
+    padding: 12px 16px;
+    gap: 2px;
+  }
+  .iw-drop.is-compact :global(.iw-drop-icon) {
+    display: none;
+  }
+  .iw-status {
+    margin: 0;
+  }
+  .iw-errors {
+    display: grid;
+    gap: 4px;
+  }
+  .iw-errors :global(p) {
+    margin: 0;
+  }
+  .iw-errors :global(a) {
+    font-weight: 600;
+    text-decoration: underline;
+  }
+
+  /* ---------- Thumbnails ---------- */
+  .iw-thumbs {
+    display: flex;
+    gap: 10px;
+    margin: 0;
+    padding: 2px 2px 8px;
+    list-style: none;
+    overflow-x: auto;
+    scrollbar-width: thin;
+  }
+  .iw-thumbs :global(.iw-thumb-item) {
+    position: relative;
+    flex: none;
+  }
+  .iw-thumbs :global(.iw-thumb) {
+    position: relative;
+    display: grid;
+    place-items: center;
+    width: 84px;
+    height: 64px;
+    padding: 0;
+    overflow: hidden;
+    background: var(--surface-2);
+    border: 2px solid var(--border);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+  }
+  .iw-thumbs :global(.iw-thumb canvas) {
+    display: block;
+    max-width: 100%;
+    max-height: 100%;
+  }
+  .iw-thumbs :global(.iw-thumb[aria-pressed='true']) {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px var(--accent-soft);
+  }
+  .iw-thumbs :global(.iw-thumb-n) {
+    position: absolute;
+    left: 4px;
+    bottom: 4px;
+    min-width: 18px;
+    padding: 0 5px;
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 18px;
+    color: #fff;
+    background: rgb(21 24 38 / 0.72);
+    border-radius: 9px;
+  }
+  .iw-thumbs :global(.iw-thumb-x) {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    display: grid;
+    place-items: center;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    color: var(--text-2);
+    background: var(--surface);
+    border: 1px solid var(--border-strong);
+    border-radius: 50%;
+    cursor: pointer;
+  }
+  .iw-thumbs :global(.iw-thumb-x:hover) {
+    color: var(--danger);
+    border-color: var(--danger);
+  }
+  /* Bigger hit area for fingers. */
+  .iw-thumbs :global(.iw-thumb-x::after) {
+    content: '';
+    position: absolute;
+    inset: -8px;
+  }
+
+  /* ---------- Layout ---------- */
+  .iw-workspace {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
+  }
+  @container (min-width: 760px) {
+    .iw-workspace {
+      grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+      grid-template-areas:
+        'view text'
+        'view style'
+        'view export';
+      align-items: start;
+    }
+    .iw-text {
+      grid-area: text;
+    }
+    .iw-style {
+      grid-area: style;
+    }
+    .iw-export {
+      grid-area: export;
+    }
+    .iw-view {
+      grid-area: view;
+      position: sticky;
+      top: 120px;
+    }
+    .iw-workspace :global(.grid-2) {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+
+  .iw-panel {
+    display: grid;
+    gap: 14px;
+    align-content: start;
+    min-width: 0;
+    padding: 16px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+  }
+  /* Options share the panel width; a label only wraps (inside its own button) when space runs out. */
+  .iw-panel .seg {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: auto;
+  }
+  .iw-panel .seg span {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    padding: 6px 8px;
+    text-align: center;
+    line-height: 1.35;
+  }
+  .iw-h {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 16px;
+    font-weight: 700;
+  }
+  .iw-h :global(svg) {
+    color: var(--accent);
+  }
+  .iw-date-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px 14px;
+  }
+  .iw-date-row input[type='date'] {
+    width: auto;
+    min-width: 0;
+    flex: 1 1 160px;
+    max-width: 220px;
+  }
+  .iw-date-row input[type='date']:disabled {
+    opacity: 0.5;
+  }
+  .iw-text-out {
+    display: grid;
+    gap: 4px;
+    padding: 10px 12px;
+    background: var(--surface-2);
+    border-radius: var(--radius-sm);
+  }
+  .iw-text-label {
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .iw-text-out output {
+    font-weight: 600;
+    white-space: pre-line;
+    overflow-wrap: anywhere;
+  }
+  .iw-text-out output.is-empty {
+    color: var(--danger);
+    font-weight: 400;
+  }
+  .field label output {
+    margin-left: 4px;
+    font-weight: 700;
+    color: var(--text);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ---------- Preview ---------- */
+  .iw-view {
+    display: grid;
+    gap: 10px;
+    min-width: 0;
+  }
+  .iw-stage {
+    display: flex;
+    justify-content: center;
+    min-width: 0;
+    padding: 10px;
+    background:
+      repeating-conic-gradient(#eceef1 0% 25%, #f7f8f9 0% 50%) 50% / 20px 20px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+  }
+  .iw-frame {
+    position: relative;
+    line-height: 0;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  .iw-frame canvas {
+    display: block;
+    max-width: 100%;
+    border-radius: 4px;
+    box-shadow: var(--shadow-sm);
+  }
+  .iw-frame.is-masking {
+    cursor: crosshair;
+    touch-action: none;
+  }
+  .iw-drag {
+    position: absolute;
+    box-sizing: border-box;
+    border: 2px dashed #fff;
+    outline: 1px solid rgb(0 0 0 / 0.6);
+    background: rgb(0 0 0 / 0.45);
+    pointer-events: none;
+  }
+  .iw-drag[data-kind='mosaic'] {
+    background: rgb(255 255 255 / 0.35);
+  }
+  .iw-badge {
+    position: absolute;
+    left: 10px;
+    top: 10px;
+    max-width: calc(100% - 20px);
+    padding: 4px 10px;
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1.5;
+    color: #fff;
+    background: rgb(21 24 38 / 0.75);
+    border-radius: 999px;
+  }
+  .iw-mask-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 10px;
+  }
+  .iw-mask-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-2);
+  }
+  .iw-mask-label :global(svg) {
+    color: var(--accent);
+  }
+  .iw-mask-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .seg input:disabled + span {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+  .iw-mask-hint {
+    margin: 0;
+  }
+
+  /* ---------- Color swatches ---------- */
+  .iw-swatches {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .iw-swatch {
+    position: relative;
+    display: grid;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    cursor: pointer;
+  }
+  .iw-swatch input[type='radio'] {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+  }
+  .iw-dot {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: var(--c);
+    box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.18);
+  }
+  .iw-swatch:has(input:checked),
+  .iw-swatch-custom.is-active {
+    box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--accent);
+  }
+  .iw-swatch:has(input:focus-visible) {
+    box-shadow: var(--focus);
+  }
+  .iw-swatch-custom input[type='color'] {
+    width: 34px;
+    height: 34px;
+    padding: 0;
+    border: 1px solid var(--border-strong);
+    border-radius: 50%;
+    background:
+      conic-gradient(#ef4444, #f59e0b, #22c55e, #06b6d4, #6366f1, #d946ef, #ef4444);
+    cursor: pointer;
+  }
+  .iw-swatch-custom input[type='color']::-webkit-color-swatch-wrapper {
+    padding: 3px;
+  }
+  .iw-swatch-custom input[type='color']::-webkit-color-swatch {
+    border: 0;
+    border-radius: 50%;
+  }
+  .iw-swatch-custom input[type='color']::-moz-color-swatch {
+    border: 0;
+    border-radius: 50%;
+  }
+
+  .iw-result {
+    margin: 0;
+    color: var(--success);
+    font-weight: 600;
+  }
+  .iw-export .notice {
+    margin: 0;
+  }
+  .iw-export .hint {
+    margin: 0;
+  }
+  .iw-export .row .btn {
+    flex: 1 1 auto;
+  }
+  @media (min-width: 520px) {
+    .iw-export .row .btn {
+      flex: 0 1 auto;
+    }
+  }
+</style>
