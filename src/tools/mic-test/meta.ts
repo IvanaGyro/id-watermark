@@ -89,7 +89,7 @@ export default defineTool({
       a: '不會。錄音只存在你的瀏覽器記憶體中，關閉頁面就消失，除非你自己按「下載錄音」存到裝置上。',
     },
   ],
-  related: ['webcam-test', 'keyboard-tester', 'screen-test', 'typing-test'],
+  related: ['webcam-test', 'keyboard-tester', 'screen-test', 'decibel-meter', 'typing-test'],
   priority: 65,
   updated: '2026-10-29',
 });

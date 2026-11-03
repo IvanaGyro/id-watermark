@@ -87,7 +87,7 @@ export default defineTool({
       a: 'No. Audio is analyzed and recorded only in your browser and is never uploaded. The 5-second clip stays on your device unless you download it, and the microphone stops when you leave the page.',
     },
   ],
-  related: ['webcam-test', 'keyboard-tester', 'screen-test', 'typing-test'],
+  related: ['webcam-test', 'keyboard-tester', 'screen-test', 'decibel-meter', 'typing-test'],
   priority: 65,
   updated: '2026-10-29',
 });

@@ -86,7 +86,7 @@ export default defineTool({
       a: 'いいえ。映像はブラウザ内に表示されるだけで、録画やサーバーへの送信は一切しません。撮影した画像も、ダウンロードしない限り端末内にだけ残ります。',
     },
   ],
-  related: ['mic-test', 'screen-test', 'keyboard-tester', 'image-compressor'],
+  related: ['mic-test', 'screen-test', 'keyboard-tester', 'decibel-meter', 'image-compressor'],
   priority: 65,
   updated: '2026-10-29',
 });

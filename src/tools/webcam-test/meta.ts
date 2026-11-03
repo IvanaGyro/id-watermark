@@ -87,7 +87,7 @@ export default defineTool({
       a: '不會。畫面只在你的瀏覽器中顯示，不會錄影或上傳；拍照的圖片也只存在你的裝置上，按下載才會存檔。',
     },
   ],
-  related: ['mic-test', 'screen-test', 'keyboard-tester', 'image-compressor'],
+  related: ['mic-test', 'screen-test', 'keyboard-tester', 'decibel-meter', 'image-compressor'],
   priority: 65,
   updated: '2026-10-29',
 });

@@ -86,7 +86,7 @@ export default defineTool({
       a: '計測はすべてブラウザ内で行われ、自己ベストだけがこの端末に保存されます。サーバーには送信されません。「記録を消去」で削除できます。',
     },
   ],
-  related: ['cps-test', 'typing-test', 'keyboard-tester', 'stopwatch'],
+  related: ['cps-test', 'typing-test', 'keyboard-tester', 'decibel-meter', 'stopwatch'],
   priority: 66,
   updated: '2026-10-29',
 });

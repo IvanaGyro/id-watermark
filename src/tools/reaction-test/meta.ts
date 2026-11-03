@@ -84,7 +84,7 @@ export default defineTool({
       a: '會。研究普遍發現簡單反應時間在 20 多歲最快，之後隨年齡逐漸變慢，但規律運動與練習可以減緩退化。',
     },
   ],
-  related: ['cps-test', 'typing-test', 'keyboard-tester', 'stopwatch'],
+  related: ['cps-test', 'typing-test', 'keyboard-tester', 'decibel-meter', 'stopwatch'],
   priority: 66,
   updated: '2026-10-29',
 });

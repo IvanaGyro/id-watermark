@@ -86,7 +86,7 @@ export default defineTool({
       a: 'No. The video is shown only in your browser and is never recorded or sent anywhere. Snapshots stay on your device unless you download them.',
     },
   ],
-  related: ['mic-test', 'screen-test', 'keyboard-tester', 'image-compressor'],
+  related: ['mic-test', 'screen-test', 'keyboard-tester', 'decibel-meter', 'image-compressor'],
   priority: 65,
   updated: '2026-10-29',
 });

@@ -87,7 +87,7 @@ export default defineTool({
       a: 'いいえ。音声はブラウザ内だけで解析・録音され、サーバーには送信されません。5 秒の録音はダウンロードしない限り端末内にだけ残り、ページを離れるとマイクも停止します。',
     },
   ],
-  related: ['webcam-test', 'keyboard-tester', 'screen-test', 'typing-test'],
+  related: ['webcam-test', 'keyboard-tester', 'screen-test', 'decibel-meter', 'typing-test'],
   priority: 65,
   updated: '2026-10-29',
 });

@@ -87,7 +87,7 @@ export default defineTool({
       a: 'No. Everything runs in your browser and only your best scores are saved on this device. Press “Clear records” to delete them.',
     },
   ],
-  related: ['cps-test', 'typing-test', 'keyboard-tester', 'stopwatch'],
+  related: ['cps-test', 'typing-test', 'keyboard-tester', 'decibel-meter', 'stopwatch'],
   priority: 66,
   updated: '2026-10-29',
 });
