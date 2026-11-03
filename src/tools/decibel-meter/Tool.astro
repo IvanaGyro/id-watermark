@@ -1,0 +1,1944 @@
+---
+import { i18nAttrs, pickStrings, type ToolProps } from '../../i18n/tool';
+import { localePath } from '../../i18n/locales';
+import { t } from '../../i18n/format';
+import { absoluteUrl, getBrand } from '../../config/site';
+import Icon from '../../components/Icon.astro';
+import {
+  DEFAULT_OFFSET,
+  OFFSET_MAX,
+  OFFSET_MIN,
+  REFERENCE_LEVELS,
+  REFERENCE_MAX,
+  REFERENCE_MIN,
+  SCALE_MAX,
+  SCALE_MIN,
+  type TimeWeighting,
+} from './logic';
+import i18n from './i18n';
+
+type Props = ToolProps;
+const { locale = 'zh-TW' } = Astro.props;
+const s = pickStrings(i18n, locale);
+const pageUrl = absoluteUrl(localePath(locale, '/decibel-meter/'));
+const client = {
+  ...s.client,
+  // For the result card.
+  brand: getBrand(locale).name,
+  title: s.challengeTitle,
+  url: pageUrl.replace(/^https?:\/\//, '').replace(/\/$/, ''),
+};
+
+// Semicircular gauge, drawn once at build time; the script only moves the value arc and the max mark.
+const CX = 120;
+const CY = 116;
+const R = 90;
+const ARC = `M ${CX - R} ${CY} A ${R} ${R} 0 0 1 ${CX + R} ${CY}`;
+const ARC_LENGTH = Math.PI * R;
+const polar = (db: number, r: number) => {
+  const a = Math.PI * (1 - (db - SCALE_MIN) / (SCALE_MAX - SCALE_MIN));
+  return { x: +(CX + r * Math.cos(a)).toFixed(2), y: +(CY - r * Math.sin(a)).toFixed(2) };
+};
+const band = (from: number, to: number, r: number) => {
+  const p = polar(from, r);
+  const q = polar(to, r);
+  return `M ${p.x} ${p.y} A ${r} ${r} 0 0 1 ${q.x} ${q.y}`;
+};
+const labels = [20, 40, 60, 80, 100, 120].map((db) => ({ db, ...polar(db, R + 17) }));
+const minorTicks = REFERENCE_LEVELS.map((db) => ({ a: polar(db, R - 12), b: polar(db, R - (db % 20 === 0 ? 18 : 15)) }));
+const times: TimeWeighting[] = ['fast', 'slow'];
+---
+
+<div class="tool" data-tool="decibel-meter" data-arc={ARC_LENGTH.toFixed(3)} {...i18nAttrs(locale, client)}>
+  <div class="row between">
+    <div class="row">
+      <button class="btn primary" type="button" id="dm-start">
+        <Icon name="Mic" size={18} />
+        <span id="dm-start-label">{s.start}</span>
+      </button>
+      <button class="btn" type="button" id="dm-stop" hidden>
+        <Icon name="Square" size={16} />
+        {s.stop}
+      </button>
+    </div>
+    <span class="dm-state" id="dm-state" data-state="idle"><span class="dm-dot" aria-hidden="true"></span><span id="dm-state-text">{s.stateIdle}</span></span>
+  </div>
+
+  <div class="notice error dm-error" id="dm-error" role="alert" hidden>
+    <strong id="dm-err-title"></strong>
+    <span id="dm-err-detail"></span>
+    <ol id="dm-err-help" hidden></ol>
+  </div>
+  <p class="notice dm-note" id="dm-processing" hidden></p>
+  <p class="notice dm-note" id="dm-silent" hidden>{s.client.silent}</p>
+  <div class="notice dm-note dm-suspended" id="dm-suspended" hidden>
+    <span>{s.client.suspended}</span>
+    <button class="btn small" type="button" id="dm-resume">{s.client.resume}</button>
+  </div>
+
+  <section class="dm-stage" id="dm-stage" data-zone="idle">
+    <div class="dm-stage-top">
+      <button class="dm-tag" type="button" id="dm-tag"></button>
+      <div class="dm-stage-actions">
+        <button class="btn small ghost" type="button" id="dm-reset" title={s.reset}><Icon name="RotateCcw" size={16} /><span class="dm-btn-label">{s.reset}</span></button>
+        <button class="btn small ghost" type="button" id="dm-fullscreen" title={s.client.fullscreen}
+          ><Icon name="Maximize" size={16} /><span class="dm-btn-label" id="dm-fs-label">{s.client.fullscreen}</span></button
+        >
+      </div>
+    </div>
+    <div class="dm-main">
+      <div class="dm-gauge">
+        <svg class="dm-gauge-svg" viewBox="0 0 240 124" role="img" aria-labelledby="dm-gauge-title">
+          <title id="dm-gauge-title">{s.gaugeAria}</title>
+          <path class="dm-track" d={ARC} />
+          <path class="dm-zone dm-zone-quiet" d={band(SCALE_MIN, 70, R - 12)} />
+          <path class="dm-zone dm-zone-moderate" d={band(70, 85, R - 12)} />
+          <path class="dm-zone dm-zone-loud" d={band(85, SCALE_MAX, R - 12)} />
+          {minorTicks.map(({ a, b }) => <line class="dm-tick" x1={a.x} y1={a.y} x2={b.x} y2={b.y} />)}
+          <path class="dm-value-arc" id="dm-arc" d={ARC} stroke-dasharray={`${ARC_LENGTH.toFixed(3)} ${ARC_LENGTH.toFixed(3)}`} stroke-dashoffset={ARC_LENGTH.toFixed(3)} />
+          <g id="dm-max-mark" class="dm-max-mark" transform={`rotate(0 ${CX} ${CY})`}>
+            <line x1={CX - R - 10} y1={CY} x2={CX - R + 10} y2={CY} />
+          </g>
+          {labels.map((l) => <text class="dm-label" x={l.x} y={l.y}>{l.db}</text>)}
+        </svg>
+        <div class="dm-readout" aria-live="off">
+          <span class="dm-value" id="dm-value">–</span>
+          <span class="dm-unit" id="dm-unit">dB(A)</span>
+        </div>
+      </div>
+      <div class="dm-side">
+        <p class="dm-near" id="dm-near">{s.idleHint}</p>
+        <div class="dm-stats">
+          <div class="dm-stat"><span class="dm-stat-label">{s.statMin}</span><span class="dm-stat-value" id="dm-min">–</span></div>
+          <div class="dm-stat"><span class="dm-stat-label">{s.statAvg}</span><span class="dm-stat-value" id="dm-avg">–</span></div>
+          <div class="dm-stat"><span class="dm-stat-label">{s.statMax}</span><span class="dm-stat-value" id="dm-max">–</span></div>
+          <div class="dm-stat"><span class="dm-stat-label">{s.statTime}</span><span class="dm-stat-value" id="dm-time">0:00</span></div>
+        </div>
+        <canvas class="dm-history" id="dm-history" role="img" aria-label={s.historyAria}></canvas>
+      </div>
+    </div>
+  </section>
+
+  <details class="dm-settings" id="dm-settings">
+    <summary><Icon name="SlidersHorizontal" size={17} />{s.settings}</summary>
+    <div class="dm-settings-body">
+      <div class="field">
+        <span class="label" id="dm-freq-label">{s.freqLabel}</span>
+        <div class="seg" role="radiogroup" aria-labelledby="dm-freq-label">
+          <label><input type="radio" name="dm-weighting" value="A" checked /><span>{s.weightA}</span></label>
+          <label><input type="radio" name="dm-weighting" value="Z" /><span>{s.weightZ}</span></label>
+        </div>
+        <p class="hint" id="dm-freq-hint">{s.freqHint}</p>
+      </div>
+      <div class="field">
+        <span class="label" id="dm-time-label">{s.timeLabel}</span>
+        <div class="seg" role="radiogroup" aria-labelledby="dm-time-label">
+          {
+            times.map((tw) => (
+              <label>
+                <input type="radio" name="dm-time" value={tw} checked={tw === 'fast'} />
+                <span>{s.timeOption[tw]}</span>
+              </label>
+            ))
+          }
+        </div>
+        <p class="hint">{s.timeHint}</p>
+      </div>
+      <div class="field">
+        <label for="dm-offset-num">{s.offsetLabel}</label>
+        <div class="dm-offset">
+          <input type="range" id="dm-offset-range" min="60" max="130" step="0.5" value={DEFAULT_OFFSET} aria-label={s.offsetLabel} />
+          <input type="number" id="dm-offset-num" inputmode="decimal" min={OFFSET_MIN} max={OFFSET_MAX} step="0.1" value={DEFAULT_OFFSET} />
+        </div>
+        <div class="row">
+          <button class="btn small" type="button" id="dm-offset-reset">{t(s.client.offsetReset, { n: DEFAULT_OFFSET })}</button>
+        </div>
+        <p class="hint">{s.offsetHint}</p>
+      </div>
+      <div class="field dm-cal">
+        <label for="dm-cal-ref">{s.calLabel}</label>
+        <div class="dm-cal-row">
+          <input type="number" id="dm-cal-ref" inputmode="decimal" min={REFERENCE_MIN} max={REFERENCE_MAX} step="0.1" placeholder="65.0" />
+          <button class="btn" type="button" id="dm-cal-apply"><Icon name="Crosshair" size={16} />{s.calApply}</button>
+        </div>
+        <p class="hint" id="dm-cal-status" aria-live="polite">{s.calHint}</p>
+      </div>
+      <div class="field" id="dm-device-field" hidden>
+        <label for="dm-device">{s.device}</label>
+        <select id="dm-device"></select>
+      </div>
+    </div>
+  </details>
+
+  <section class="dm-ch" id="dm-ch" aria-labelledby="dm-ch-title">
+    <div class="dm-ch-head">
+      <h3 class="dm-ch-title" id="dm-ch-title"><Icon name="Megaphone" size={22} />{s.challengeTitle}</h3>
+      <span class="dm-ch-best"><Icon name="Trophy" size={16} /><span id="dm-ch-best">{s.client.ch.noBest}</span></span>
+    </div>
+    <p class="dm-ch-intro">{s.challengeIntro}</p>
+
+    <div class="dm-ch-panel dm-ch-idle" id="dm-ch-idle">
+      <button class="btn primary dm-ch-go" type="button" id="dm-ch-start"><Icon name="Megaphone" size={18} />{s.challengeStart}</button>
+    </div>
+
+    <div class="dm-ch-panel dm-ch-live" id="dm-ch-live" data-phase="countdown" hidden>
+      <div class="dm-ch-big" id="dm-ch-big" aria-live="assertive">3</div>
+      <div class="dm-ch-caption" id="dm-ch-caption">{s.client.ch.ready}</div>
+      <div class="dm-ch-bar" aria-hidden="true"><span id="dm-ch-fill"></span></div>
+      <button class="btn small ghost" type="button" id="dm-ch-cancel">{s.client.ch.cancel}</button>
+    </div>
+
+    <div class="dm-ch-panel dm-ch-result" id="dm-ch-result" hidden>
+      <div class="dm-ch-summary">
+        <p class="dm-ch-new" id="dm-ch-new" hidden><Icon name="Trophy" size={16} />{s.client.ch.newBest}</p>
+        <p class="dm-ch-rank" id="dm-ch-rank"></p>
+        <p class="dm-ch-line" id="dm-ch-line"></p>
+        <div class="dm-ch-scores">
+          <div class="stat">
+            <span class="stat-value"><span id="dm-ch-peak"></span><span class="dm-ch-unit" data-ch-unit></span></span>
+            <span class="stat-label">{s.client.ch.peak}</span>
+          </div>
+          <div class="stat">
+            <span class="stat-value"><span id="dm-ch-avg"></span><span class="dm-ch-unit" data-ch-unit></span></span>
+            <span class="stat-label">{s.client.ch.avg}</span>
+          </div>
+        </div>
+        <p class="hint dm-ch-clip" id="dm-ch-clip" hidden>{s.client.ch.clipped}</p>
+        <div class="row">
+          <button class="btn primary" type="button" id="dm-ch-again"><Icon name="RotateCcw" size={16} />{s.client.ch.again}</button>
+          <button class="btn" type="button" id="dm-ch-download" disabled><Icon name="Download" size={16} />{s.client.ch.download}</button>
+          <button class="btn" type="button" id="dm-ch-share" hidden><Icon name="Share2" size={16} />{s.client.ch.share}</button>
+        </div>
+      </div>
+      <img class="dm-ch-card" id="dm-ch-card" alt={s.client.ch.cardAlt} width="1080" height="1080" hidden />
+    </div>
+
+    <p class="notice error" id="dm-ch-error" hidden></p>
+    <p class="hint dm-ch-caution">{s.challengeCaution}</p>
+  </section>
+
+  <section class="dm-ref">
+    <h3 class="dm-ref-title">{s.refTitle}</h3>
+    <div class="table-wrap">
+      <table class="table dm-ref-table" id="dm-ref">
+        <thead>
+          <tr><th class="num">{s.refLevel}</th><th>{s.refExample}</th></tr>
+        </thead>
+        <tbody>
+          {
+            REFERENCE_LEVELS.map((db, i) => (
+              <tr data-i={i} data-zone={db >= 85 ? 'loud' : db >= 70 ? 'moderate' : 'quiet'}>
+                <td class="num">{db} dB</td>
+                <td>{s.references[i]}</td>
+              </tr>
+            ))
+          }
+        </tbody>
+      </table>
+    </div>
+    <p class="hint">{s.refNote}</p>
+  </section>
+
+  <p class="hint dm-privacy"><Icon name="ShieldCheck" size={16} />{s.privacy}</p>
+</div>
+
+<script>
+  import { AudioLines } from 'lucide';
+  import { $, $$, downloadBlob, loadPref, savePref } from '../../lib/client';
+  import { readI18n } from '../../i18n/client';
+  import { formatDate, formatFixed, formatList, parseNumber, t } from '../../i18n/format';
+  import type { Strings } from './i18n';
+  import {
+    CLIP_LEVEL,
+    DEFAULT_OFFSET,
+    REFERENCE_MAX,
+    REFERENCE_MIN,
+    Ring,
+    SCALE_MAX,
+    SCALE_MIN,
+    TAU_MS,
+    WARMUP_MS,
+    aWeightingBiquads,
+    addToStats,
+    calibrationOffset,
+    cardFilename,
+    challengeClock,
+    clampOffset,
+    describeMediaError,
+    detectEnv,
+    deviceLabel,
+    emptyStats,
+    energyAverage,
+    estimateDb,
+    formatElapsed,
+    gaugeFraction,
+    isNewBest,
+    meanSquare,
+    msToDbfs,
+    nearestReferenceIndex,
+    normalizeBest,
+    normalizePrefs,
+    peakOf,
+    permissionHelp,
+    scoreChallenge,
+    smoothPower,
+    summarize,
+    wrapText,
+    zoneFor,
+    type BestScore,
+    type ChallengeResult,
+    type FreqWeighting,
+    type LevelStats,
+    type TimeWeighting,
+  } from './logic';
+
+  type Client = Strings['client'] & { brand: string; url: string; title: string };
+
+  const PREF_KEY = 'decibel-meter';
+  const BEST_KEY = 'decibel-meter:best';
+  const WEIGHTINGS: FreqWeighting[] = ['Z', 'A'];
+  const TIMES: TimeWeighting[] = ['fast', 'slow'];
+  /** History graph: one point every 100 ms for 60 s. */
+  const HISTORY_STEP = 100;
+  const HISTORY_LEN = 600;
+  /** Calibration averages the last 3 s of history. */
+  const CAL_POINTS = 30;
+  /** Numbers refresh a few times a second so they stay readable; the gauge moves every frame. */
+  const TEXT_MS = 200;
+  const SILENT_MS = 2000;
+
+  const root = $('[data-tool="decibel-meter"]');
+  const { s, locale } = readI18n<Client>(root);
+  const arcLength = Number(root.dataset.arc) || 282.743;
+
+  const startBtn = $<HTMLButtonElement>('#dm-start', root);
+  const startLabel = $('#dm-start-label', root);
+  const stopBtn = $<HTMLButtonElement>('#dm-stop', root);
+  const stateEl = $('#dm-state', root);
+  const stateText = $('#dm-state-text', root);
+  const errorBox = $('#dm-error', root);
+  const errTitle = $('#dm-err-title', root);
+  const errDetail = $('#dm-err-detail', root);
+  const errHelp = $('#dm-err-help', root);
+  const processingNote = $('#dm-processing', root);
+  const silentNote = $('#dm-silent', root);
+  const suspendedNote = $('#dm-suspended', root);
+  const resumeBtn = $<HTMLButtonElement>('#dm-resume', root);
+  const stage = $('#dm-stage', root);
+  const tagBtn = $<HTMLButtonElement>('#dm-tag', root);
+  const resetBtn = $<HTMLButtonElement>('#dm-reset', root);
+  const fsBtn = $<HTMLButtonElement>('#dm-fullscreen', root);
+  const fsLabel = $('#dm-fs-label', root);
+  const arcEl = $<SVGPathElement>('#dm-arc', root);
+  const maxMark = $<SVGGElement>('#dm-max-mark', root);
+  const valueEl = $('#dm-value', root);
+  const unitEl = $('#dm-unit', root);
+  const nearEl = $('#dm-near', root);
+  const minEl = $('#dm-min', root);
+  const avgEl = $('#dm-avg', root);
+  const maxEl = $('#dm-max', root);
+  const timeEl = $('#dm-time', root);
+  const canvas = $<HTMLCanvasElement>('#dm-history', root);
+  const settingsBox = $<HTMLDetailsElement>('#dm-settings', root);
+  const weightRadios = $$<HTMLInputElement>('input[name="dm-weighting"]', root);
+  const timeRadios = $$<HTMLInputElement>('input[name="dm-time"]', root);
+  const freqHint = $('#dm-freq-hint', root);
+  const offsetRange = $<HTMLInputElement>('#dm-offset-range', root);
+  const offsetNum = $<HTMLInputElement>('#dm-offset-num', root);
+  const offsetReset = $<HTMLButtonElement>('#dm-offset-reset', root);
+  const calRef = $<HTMLInputElement>('#dm-cal-ref', root);
+  const calApply = $<HTMLButtonElement>('#dm-cal-apply', root);
+  const calStatus = $('#dm-cal-status', root);
+  const deviceField = $('#dm-device-field', root);
+  const deviceSelect = $<HTMLSelectElement>('#dm-device', root);
+  const refRows = $$<HTMLTableRowElement>('#dm-ref tbody tr', root);
+
+  const chBest = $('#dm-ch-best', root);
+  const chIdle = $('#dm-ch-idle', root);
+  const chLive = $('#dm-ch-live', root);
+  const chResult = $('#dm-ch-result', root);
+  const chStart = $<HTMLButtonElement>('#dm-ch-start', root);
+  const chBig = $('#dm-ch-big', root);
+  const chCaption = $('#dm-ch-caption', root);
+  const chFill = $('#dm-ch-fill', root);
+  const chCancel = $<HTMLButtonElement>('#dm-ch-cancel', root);
+  const chNew = $('#dm-ch-new', root);
+  const chRank = $('#dm-ch-rank', root);
+  const chLine = $('#dm-ch-line', root);
+  const chPeak = $('#dm-ch-peak', root);
+  const chAvg = $('#dm-ch-avg', root);
+  const chClip = $('#dm-ch-clip', root);
+  const chAgain = $<HTMLButtonElement>('#dm-ch-again', root);
+  const chDownload = $<HTMLButtonElement>('#dm-ch-download', root);
+  const chShare = $<HTMLButtonElement>('#dm-ch-share', root);
+  const chCard = $<HTMLImageElement>('#dm-ch-card', root);
+  const chError = $('#dm-ch-error', root);
+
+  const calHintText = calStatus.textContent ?? '';
+  let idleStateText = stateText.textContent ?? '';
+  const env = detectEnv(navigator.userAgent, navigator.maxTouchPoints || 0);
+  const AC: typeof AudioContext | undefined =
+    window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+  const iirSupported = typeof AC?.prototype?.createIIRFilter === 'function';
+
+  const prefs = normalizePrefs(loadPref<unknown>(PREF_KEY, null));
+  let best: BestScore | null = normalizeBest(loadPref<unknown>(BEST_KEY, null));
+
+  // ---------- Audio state ----------
+  let stream: MediaStream | null = null;
+  let ctx: AudioContext | null = null;
+  let graph: AudioNode[] = [];
+  let analysers: Partial<Record<FreqWeighting, AnalyserNode>> = {};
+  const buffers: Partial<Record<FreqWeighting, Float32Array<ArrayBuffer>>> = {};
+  let running = false;
+  let starting = false;
+  let raf = 0;
+  let startedAt = 0;
+  let statsStart = 0;
+  let lastFrame = 0;
+  let windowMs = 43;
+  let lastText = 0;
+  let lastHistory = 0;
+  let silentSince = 0;
+
+  interface Channel {
+    power: Record<TimeWeighting, number | null>;
+    stats: Record<TimeWeighting, LevelStats>;
+    history: Record<TimeWeighting, Ring>;
+  }
+  const newChannel = (): Channel => ({
+    power: { fast: null, slow: null },
+    stats: { fast: emptyStats(), slow: emptyStats() },
+    history: { fast: new Ring(HISTORY_LEN), slow: new Ring(HISTORY_LEN) },
+  });
+  const channels: Record<FreqWeighting, Channel> = { Z: newChannel(), A: newChannel() };
+  /** Raw mean square of the latest frame, per weighting. */
+  const framePower: Record<FreqWeighting, number> = { Z: 0, A: 0 };
+
+  const activeWeighting = (): FreqWeighting =>
+    prefs.weighting === 'A' && iirSupported && (!running || analysers.A) ? 'A' : 'Z';
+  const unit = (w: FreqWeighting = activeWeighting()) => (w === 'A' ? s.unitA : s.unitZ);
+  const fmt = (db: number) => formatFixed(db, 1, locale);
+  /** Offsets are always positive (40–160): '+94', '+97.5'. */
+  const signed = (n: number) => `+${formatFixed(n, Number.isInteger(n) ? 0 : 1, locale)}`;
+
+  /** Write text only when it changed. */
+  const last = new Map<HTMLElement, string>();
+  function put(el: HTMLElement, text: string) {
+    if (last.get(el) === text) return;
+    last.set(el, text);
+    el.textContent = text;
+  }
+
+  // ---------- Status & errors ----------
+  function setState(name: 'idle' | 'live' | 'starting', text: string) {
+    stateEl.dataset.state = name;
+    stateText.textContent = text;
+  }
+
+  function showError(name: string) {
+    const problem = describeMediaError(name, 'mic', s.media);
+    errTitle.textContent = problem.title;
+    errDetail.textContent = problem.detail;
+    errHelp.replaceChildren(
+      ...(problem.showPermissionHelp ? permissionHelp(env, 'mic', s.media) : []).map((step) => {
+        const li = document.createElement('li');
+        li.textContent = step;
+        return li;
+      }),
+    );
+    errHelp.hidden = !problem.showPermissionHelp;
+    errorBox.hidden = false;
+  }
+
+  const errorName = (err: unknown) => (err instanceof Error || err instanceof DOMException ? err.name : '');
+
+  // ---------- Measurement ----------
+  function resetMeasurement(now = performance.now()) {
+    for (const w of WEIGHTINGS) {
+      const c = channels[w];
+      for (const tw of TIMES) {
+        c.stats[tw] = emptyStats();
+        c.history[tw].clear();
+      }
+    }
+    statsStart = Math.max(now, startedAt + WARMUP_MS);
+    lastHistory = 0;
+    lastText = 0;
+    put(timeEl, formatElapsed(0));
+    render(now, true);
+    drawHistory(now);
+  }
+
+  function frame(now: number) {
+    raf = requestAnimationFrame(frame);
+    if (!running) return;
+    const dt = lastFrame ? Math.min(now - lastFrame, 1000) : 0;
+    lastFrame = now;
+    if (now - startedAt < WARMUP_MS) return;
+
+    let peak = 0;
+    for (const w of WEIGHTINGS) {
+      const analyser = analysers[w];
+      const buffer = buffers[w];
+      if (!analyser || !buffer) continue;
+      analyser.getFloatTimeDomainData(buffer);
+      const power = meanSquare(buffer);
+      framePower[w] = power;
+      if (w === 'Z') peak = peakOf(buffer);
+      const c = channels[w];
+      // Each frame stands for the time since the previous one, but never more than the analyser window.
+      const weight = Math.min(dt, windowMs);
+      for (const tw of TIMES) {
+        const p = smoothPower(c.power[tw], power, dt, TAU_MS[tw]);
+        c.power[tw] = p;
+        // The average integrates the time-weighted power: the same as Leq once the measurement is longer
+        // than a few time constants, and never outside the min / max shown next to it.
+        if (now >= statsStart) c.stats[tw] = addToStats(c.stats[tw], msToDbfs(p), p, weight);
+      }
+    }
+
+    // Pure digital silence for a while: the input is muted or held by another app.
+    if (peak === 0) {
+      silentSince ||= now;
+      if (now - silentSince > SILENT_MS) silentNote.hidden = false;
+    } else {
+      silentSince = 0;
+      silentNote.hidden = true;
+    }
+
+    if (now - lastHistory >= HISTORY_STEP) {
+      lastHistory = lastHistory && now - lastHistory < HISTORY_STEP * 2 ? lastHistory + HISTORY_STEP : now;
+      for (const w of WEIGHTINGS) {
+        const c = channels[w];
+        if (!analysers[w]) continue;
+        for (const tw of TIMES) c.history[tw].push(msToDbfs(c.power[tw] ?? 0));
+      }
+    }
+
+    challengeTick(now, dt, peak);
+    render(now);
+    drawHistory(now);
+  }
+
+  function currentDb(): number | null {
+    const p = channels[activeWeighting()].power[prefs.time];
+    return running && p !== null ? estimateDb(msToDbfs(p), prefs.offset) : null;
+  }
+
+  let nearIndex = -2;
+  function render(now: number, force = false) {
+    const w = activeWeighting();
+    const c = channels[w];
+    const db = currentDb();
+
+    // Gauge: every frame.
+    const fraction = db === null ? 0 : gaugeFraction(db);
+    arcEl.style.strokeDashoffset = String(arcLength * (1 - fraction));
+    const zone = db === null ? 'idle' : zoneFor(db);
+    if (stage.dataset.zone !== zone) stage.dataset.zone = zone;
+    const sum = summarize(c.stats[prefs.time]);
+    const maxDb = sum ? estimateDb(sum.max, prefs.offset) : null;
+    maxMark.setAttribute('transform', `rotate(${(maxDb === null ? 0 : gaugeFraction(maxDb)) * 180} 120 116)`);
+    maxMark.style.opacity = maxDb === null || maxDb <= SCALE_MIN ? '0' : '1';
+
+    if (!force && now - lastText < TEXT_MS) return;
+    lastText = now;
+    put(unitEl, unit(w));
+    put(tagBtn, t(s.tag, { t: s.timeShort[prefs.time], o: signed(prefs.offset) }));
+    put(valueEl, db === null ? '–' : fmt(db));
+
+    const index = db === null ? -1 : nearestReferenceIndex(db);
+    if (index !== nearIndex) {
+      nearIndex = index;
+      refRows.forEach((row, i) => row.classList.toggle('is-near', i === index));
+    }
+    if (db !== null) put(nearEl, t(s.near, { label: refRows[index]?.cells[1]?.textContent ?? '' }));
+    else if (running) put(nearEl, s.waiting);
+
+    put(minEl, sum ? `${fmt(estimateDb(sum.min, prefs.offset))}` : '–');
+    put(avgEl, sum ? `${fmt(estimateDb(sum.leq, prefs.offset))}` : '–');
+    put(maxEl, maxDb === null ? '–' : fmt(maxDb));
+    if (running) put(timeEl, formatElapsed(Math.max(0, now - statsStart)));
+  }
+
+  // ---------- History graph ----------
+  const css = getComputedStyle(root);
+  const color = {
+    accent: css.getPropertyValue('--accent').trim() || '#f0522e',
+    grid: css.getPropertyValue('--border').trim() || '#e6e7ea',
+    muted: css.getPropertyValue('--muted').trim() || '#80838c',
+    text: css.getPropertyValue('--text').trim() || '#18191c',
+    font: css.fontFamily || 'sans-serif',
+  };
+
+  function sizeCanvas(): number {
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const w = Math.max(1, Math.round(canvas.clientWidth * dpr));
+    const h = Math.max(1, Math.round(canvas.clientHeight * dpr));
+    if (canvas.width !== w || canvas.height !== h) {
+      canvas.width = w;
+      canvas.height = h;
+    }
+    return dpr;
+  }
+
+  function drawHistory(now: number) {
+    const g = canvas.getContext('2d');
+    if (!g) return;
+    const dpr = sizeCanvas();
+    const { width: W, height: H } = canvas;
+    // Labels grow a little on a tall (full screen) graph.
+    const label = Math.round(Math.min(16, Math.max(11, canvas.clientHeight / 22)));
+    const left = (label * 2.6 + 2) * dpr;
+    const right = 6 * dpr;
+    const top = 8 * dpr;
+    const bottom = (label + 9) * dpr;
+    const plotW = W - left - right;
+    const plotH = H - top - bottom;
+    const y = (db: number) => top + plotH * (1 - gaugeFraction(db));
+    g.clearRect(0, 0, W, H);
+
+    g.font = `${label * dpr}px ${color.font}`;
+    g.textBaseline = 'middle';
+    g.textAlign = 'right';
+    g.lineWidth = 1 * dpr;
+    for (let db = SCALE_MIN; db <= SCALE_MAX; db += 20) {
+      const yy = Math.round(y(db)) + 0.5;
+      g.strokeStyle = color.grid;
+      g.beginPath();
+      g.moveTo(left, yy);
+      g.lineTo(W - right, yy);
+      g.stroke();
+      g.fillStyle = color.muted;
+      g.fillText(String(db), left - 6 * dpr, yy);
+    }
+    g.textBaseline = 'alphabetic';
+    g.textAlign = 'left';
+    g.fillText(s.historyAgo, left, H - 5 * dpr);
+    g.textAlign = 'right';
+    g.fillText(s.historyNow, W - right, H - 5 * dpr);
+
+    const ring = channels[activeWeighting()].history[prefs.time];
+    const n = ring.length;
+    if (n < 2) return;
+    const span = HISTORY_STEP * HISTORY_LEN;
+    const xAt = (age: number) => left + plotW * (1 - age / span);
+    const newestAge = running && lastHistory ? Math.max(0, now - lastHistory) : 0;
+    g.save();
+    g.beginPath();
+    g.rect(left, top - 2 * dpr, plotW, plotH + 4 * dpr);
+    g.clip();
+    g.beginPath();
+    let firstX = 0;
+    for (let i = 0; i < n; i++) {
+      const age = newestAge + (n - 1 - i) * HISTORY_STEP;
+      const x = xAt(age);
+      const yy = y(estimateDb(ring.at(i), prefs.offset));
+      if (i === 0) {
+        firstX = x;
+        g.moveTo(x, yy);
+      } else g.lineTo(x, yy);
+    }
+    const lastX = xAt(newestAge);
+    g.lineJoin = 'round';
+    g.lineWidth = 2 * dpr;
+    g.strokeStyle = color.accent;
+    g.stroke();
+    g.lineTo(lastX, top + plotH);
+    g.lineTo(firstX, top + plotH);
+    g.closePath();
+    g.globalAlpha = 0.12;
+    g.fillStyle = color.accent;
+    g.fill();
+    g.restore();
+  }
+
+  // ---------- Start / stop ----------
+  function teardown() {
+    stream?.getTracks().forEach((track) => track.stop());
+    stream = null;
+    for (const node of graph) node.disconnect();
+    graph = [];
+    analysers = {};
+  }
+
+  function buildGraph(next: MediaStream, c: AudioContext) {
+    const source = c.createMediaStreamSource(next);
+    graph.push(source);
+    // Z: flat, with a gentle 10 Hz high-pass so a DC offset from the converter doesn't count as sound.
+    const dc = c.createBiquadFilter();
+    dc.type = 'highpass';
+    dc.frequency.value = 10;
+    dc.Q.value = Math.SQRT1_2;
+    const z = c.createAnalyser();
+    z.fftSize = 2048;
+    source.connect(dc).connect(z);
+    graph.push(dc, z);
+    analysers.Z = z;
+    buffers.Z = new Float32Array(z.fftSize);
+    if (iirSupported) {
+      try {
+        let node: AudioNode = source;
+        for (const { b, a } of aWeightingBiquads(c.sampleRate)) {
+          const filter = c.createIIRFilter(b, a);
+          node.connect(filter);
+          graph.push(filter);
+          node = filter;
+        }
+        const aw = c.createAnalyser();
+        aw.fftSize = 2048;
+        node.connect(aw);
+        graph.push(aw);
+        analysers.A = aw;
+        buffers.A = new Float32Array(aw.fftSize);
+      } catch {
+        delete analysers.A;
+      }
+    }
+    windowMs = (z.fftSize / c.sampleRate) * 1000;
+  }
+
+  function checkProcessing(track: MediaStreamTrack | undefined) {
+    const settings = (track?.getSettings() ?? {}) as MediaTrackSettings;
+    const names = (['echoCancellation', 'noiseSuppression', 'autoGainControl'] as const).filter((k) => settings[k] === true);
+    processingNote.hidden = names.length === 0;
+    if (names.length) processingNote.textContent = t(s.processing, { list: formatList(names.map((k) => s.processingNames[k]), locale) });
+  }
+
+  async function start(deviceId?: string, exact = false): Promise<boolean> {
+    if (starting) return false;
+    errorBox.hidden = true;
+    if (!window.isSecureContext) {
+      showError('insecure');
+      return false;
+    }
+    if (!navigator.mediaDevices?.getUserMedia || !AC) {
+      showError('unsupported');
+      return false;
+    }
+    try {
+      // Create and resume the AudioContext inside the click, or iOS Safari keeps it suspended.
+      if (!ctx) {
+        ctx = new AC();
+        // iOS suspends or interrupts it for calls and app switches; offer a resume button then.
+        ctx.addEventListener('statechange', updateSuspended);
+      }
+      void ctx.resume();
+    } catch {
+      showError('unsupported');
+      return false;
+    }
+    const c = ctx;
+    starting = true;
+    startBtn.disabled = true;
+    setState('starting', s.starting);
+    const id = deviceId ?? prefs.deviceId;
+    // Ask for the raw signal: echo cancellation, noise suppression and auto gain all squash the level.
+    const audio: MediaTrackConstraints = {
+      echoCancellation: false,
+      noiseSuppression: false,
+      autoGainControl: false,
+      ...(id ? { deviceId: exact ? { exact: id } : { ideal: id } } : {}),
+    };
+    try {
+      let next: MediaStream;
+      try {
+        next = await navigator.mediaDevices.getUserMedia({ audio });
+      } catch (err) {
+        if (errorName(err) !== 'OverconstrainedError' || exact) throw err;
+        next = await navigator.mediaDevices.getUserMedia({ audio: true });
+      }
+      teardown();
+      stream = next;
+      const track = next.getAudioTracks()[0];
+      track?.addEventListener('ended', () => {
+        if (stream === next) {
+          stop();
+          showError('NotReadableError');
+        }
+      });
+      const settings = track?.getSettings() ?? {};
+      if (settings.deviceId && settings.deviceId !== prefs.deviceId) {
+        prefs.deviceId = settings.deviceId;
+        savePref(PREF_KEY, prefs);
+      }
+      buildGraph(next, c);
+      checkProcessing(track);
+      await c.resume().catch(() => undefined);
+      for (const w of WEIGHTINGS) channels[w].power = { fast: null, slow: null };
+      running = true;
+      startedAt = performance.now();
+      lastFrame = 0;
+      silentSince = 0;
+      silentNote.hidden = true;
+      syncWeightingUi();
+      resetMeasurement(startedAt);
+      setState('live', s.live);
+      stopBtn.hidden = false;
+      startLabel.textContent = s.restart;
+      if (!raf) raf = requestAnimationFrame(frame);
+      void refreshDevices();
+      updateSuspended();
+      return true;
+    } catch (err) {
+      showError(errorName(err));
+      if (running) setState('live', s.live);
+      else setState('idle', idleStateText);
+      return false;
+    } finally {
+      starting = false;
+      startBtn.disabled = false;
+    }
+  }
+
+  function stop() {
+    if (chPhase === 'countdown' || chPhase === 'measure') {
+      cancelChallenge();
+      chError.textContent = s.ch.stopped;
+      chError.hidden = false;
+    }
+    teardown();
+    running = false;
+    cancelAnimationFrame(raf);
+    raf = 0;
+    if (ctx && ctx.state === 'running') void ctx.suspend();
+    suspendedNote.hidden = true;
+    silentNote.hidden = true;
+    for (const w of WEIGHTINGS) channels[w].power = { fast: null, slow: null };
+    render(performance.now(), true);
+    put(nearEl, s.stopped);
+    drawHistory(performance.now());
+    idleStateText = s.stopped;
+    setState('idle', s.stopped);
+    stopBtn.hidden = true;
+    startLabel.textContent = s.restart;
+  }
+
+  function updateSuspended() {
+    suspendedNote.hidden = !(running && ctx && ctx.state !== 'running');
+  }
+
+  // ---------- Devices ----------
+  async function refreshDevices() {
+    if (!navigator.mediaDevices?.enumerateDevices) return;
+    const devices = (await navigator.mediaDevices.enumerateDevices()).filter((d) => d.kind === 'audioinput');
+    const activeId = stream?.getAudioTracks()[0]?.getSettings().deviceId ?? prefs.deviceId;
+    deviceSelect.replaceChildren(
+      ...devices.map((d, i) => {
+        const opt = document.createElement('option');
+        opt.value = d.deviceId;
+        opt.textContent = deviceLabel(d.label, i, 'mic', s.media);
+        return opt;
+      }),
+    );
+    if (devices.some((d) => d.deviceId === activeId)) deviceSelect.value = activeId;
+    deviceField.hidden = devices.length < 2 || !devices.some((d) => d.label);
+  }
+
+  // ---------- Settings ----------
+  function syncWeightingUi() {
+    const aRadio = weightRadios.find((r) => r.value === 'A');
+    const aAvailable = iirSupported && (!running || Boolean(analysers.A));
+    if (aRadio) aRadio.disabled = !aAvailable;
+    const w = activeWeighting();
+    for (const radio of weightRadios) radio.checked = radio.value === w;
+    if (!aAvailable) freqHint.textContent = s.noIir;
+  }
+
+  function writeForm() {
+    syncWeightingUi();
+    for (const radio of timeRadios) radio.checked = radio.value === prefs.time;
+    offsetRange.value = String(prefs.offset);
+    offsetNum.value = String(prefs.offset);
+  }
+
+  function setOffset(value: number, from?: HTMLInputElement) {
+    prefs.offset = clampOffset(value);
+    if (from !== offsetRange) offsetRange.value = String(prefs.offset);
+    if (from !== offsetNum) offsetNum.value = String(prefs.offset);
+    savePref(PREF_KEY, prefs);
+    refresh();
+  }
+
+  function refresh() {
+    const now = performance.now();
+    render(now, true);
+    drawHistory(now);
+  }
+
+  function calibrate() {
+    const ref = parseNumber(calRef.value);
+    if (!Number.isFinite(ref) || ref < REFERENCE_MIN || ref > REFERENCE_MAX) {
+      calStatus.textContent = t(s.calBad, { min: REFERENCE_MIN, max: REFERENCE_MAX });
+      return;
+    }
+    const ring = channels[activeWeighting()].history.fast;
+    if (!running || ring.length < CAL_POINTS) {
+      calStatus.textContent = s.calNeedRun;
+      return;
+    }
+    const offset = calibrationOffset(ref, energyAverage(ring.last(CAL_POINTS)));
+    if (offset === null) {
+      calStatus.textContent = s.calNeedRun;
+      return;
+    }
+    setOffset(offset);
+    calStatus.textContent = t(s.calDone, { offset: signed(offset) });
+  }
+
+  // ---------- Scream challenge ----------
+  type ChPhase = 'idle' | 'countdown' | 'measure' | 'result';
+  let chPhase: ChPhase = 'idle';
+  let chStartAt = 0;
+  let chWeighting: FreqWeighting = 'A';
+  let chPeakDbfs = -Infinity;
+  let chEnergy = 0;
+  let chDuration = 0;
+  let chClipped = false;
+  let chTrace: number[] = [];
+  let chLastText = 0;
+  let cardBlob: Blob | null = null;
+  let cardUrl = '';
+  let cardResult: ChallengeResult | null = null;
+
+  function showPanel(name: 'idle' | 'live' | 'result') {
+    chIdle.hidden = name !== 'idle';
+    chLive.hidden = name !== 'live';
+    chResult.hidden = name !== 'result';
+  }
+
+  function renderBest() {
+    chBest.textContent = best ? t(s.ch.best, { db: `${fmt(best.peak)} ${best.weighting === 'A' ? s.unitA : s.unitZ}` }) : s.ch.noBest;
+  }
+
+  async function startChallenge() {
+    chError.hidden = true;
+    if (!running && !(await start())) {
+      // The error box sits above the meter, far from this button on a phone.
+      if (!errorBox.hidden) errorBox.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      return;
+    }
+    chPhase = 'countdown';
+    chStartAt = performance.now();
+    chWeighting = activeWeighting();
+    chPeakDbfs = -Infinity;
+    chEnergy = 0;
+    chDuration = 0;
+    chClipped = false;
+    chTrace = [];
+    chLastText = 0;
+    chLive.dataset.phase = 'countdown';
+    put(chBig, '3');
+    chCaption.textContent = s.ch.ready;
+    chFill.style.transform = 'scaleX(0)';
+    showPanel('live');
+    chLive.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }
+
+  function cancelChallenge() {
+    chPhase = 'idle';
+    showPanel(cardResult ? 'result' : 'idle');
+  }
+
+  function challengeTick(now: number, dt: number, peak: number) {
+    if (chPhase !== 'countdown' && chPhase !== 'measure') return;
+    const clock = challengeClock(now - chStartAt);
+    if (clock.phase === 'countdown') {
+      put(chBig, String(clock.count));
+      return;
+    }
+    if (clock.phase === 'measure') {
+      if (chPhase === 'countdown') {
+        chPhase = 'measure';
+        chLive.dataset.phase = 'measure';
+        chCaption.textContent = s.ch.go;
+      }
+      const fast = channels[chWeighting].power.fast;
+      if (fast === null) return;
+      const fastDbfs = msToDbfs(fast);
+      chPeakDbfs = Math.max(chPeakDbfs, fastDbfs);
+      const weight = Math.min(dt, windowMs);
+      chEnergy += framePower[chWeighting] * weight;
+      chDuration += weight;
+      if (peak >= CLIP_LEVEL) chClipped = true;
+      chTrace.push(estimateDb(fastDbfs, prefs.offset));
+      chFill.style.transform = `scaleX(${clock.progress})`;
+      if (now - chLastText >= 100) {
+        chLastText = now;
+        put(chBig, fmt(estimateDb(fastDbfs, prefs.offset)));
+      }
+      return;
+    }
+    finishChallenge();
+  }
+
+  function localDate(d = new Date()): string {
+    const p = (n: number) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+  }
+
+  function finishChallenge() {
+    chPhase = 'result';
+    if (!(chDuration > 0) || !Number.isFinite(chPeakDbfs)) {
+      showPanel('idle');
+      chPhase = 'idle';
+      return;
+    }
+    const result = scoreChallenge(chPeakDbfs, msToDbfs(chEnergy / chDuration), prefs.offset, chClipped);
+    const record = isNewBest(result, best);
+    if (record) {
+      best = { peak: result.peak, avg: result.avg, date: localDate(), weighting: chWeighting };
+      savePref(BEST_KEY, best);
+      renderBest();
+    }
+    cardResult = result;
+    const u = unit(chWeighting);
+    const rank = s.ch.ranks[result.rank];
+    chNew.hidden = !record;
+    chRank.textContent = rank.title;
+    chLine.textContent = rank.line;
+    chPeak.textContent = fmt(result.peak);
+    chAvg.textContent = fmt(result.avg);
+    for (const el of $$('[data-ch-unit]', chResult)) el.textContent = u;
+    chClip.hidden = !result.clipped;
+    chDownload.disabled = true;
+    chShare.hidden = true;
+    showPanel('result');
+    void makeCard(result, chTrace.slice(), u, record);
+  }
+
+  // ---------- Result card ----------
+  function roundRect(g: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
+    g.beginPath();
+    if (typeof g.roundRect === 'function') g.roundRect(x, y, w, h, r);
+    else g.rect(x, y, w, h);
+  }
+
+  function drawIcon(g: CanvasRenderingContext2D, x: number, y: number, size: number) {
+    g.save();
+    g.translate(x, y);
+    g.scale(size / 24, size / 24);
+    g.lineWidth = 2;
+    g.lineCap = 'round';
+    g.lineJoin = 'round';
+    for (const [tag, attrs] of AudioLines) if (tag === 'path') g.stroke(new Path2D(String(attrs.d)));
+    g.restore();
+  }
+
+  function renderCard(result: ChallengeResult, trace: number[], u: string, record: boolean): HTMLCanvasElement {
+    const S = 1080;
+    const P = 84;
+    const card = document.createElement('canvas');
+    card.width = S;
+    card.height = S;
+    const g = card.getContext('2d')!;
+    const font = (weight: number, size: number) => `${weight} ${size}px ${color.font}`;
+    const rank = s.ch.ranks[result.rank];
+
+    g.fillStyle = '#ffffff';
+    g.fillRect(0, 0, S, S);
+    g.fillStyle = color.accent;
+    g.fillRect(0, S - 18, S, 18);
+
+    // Header: icon, brand, challenge name.
+    g.strokeStyle = color.accent;
+    drawIcon(g, P, P - 4, 56);
+    g.fillStyle = color.text;
+    g.textBaseline = 'middle';
+    g.font = font(800, 40);
+    g.fillText(s.brand, P + 76, P + 24);
+    const brandW = g.measureText(s.brand).width;
+    g.fillStyle = '#d4d6db';
+    g.fillRect(P + 76 + brandW + 22, P + 6, 3, 36);
+    g.fillStyle = color.muted;
+    g.font = font(700, 36);
+    g.fillText(s.title, P + 76 + brandW + 46, P + 24);
+
+    // Peak.
+    g.textBaseline = 'alphabetic';
+    g.fillStyle = color.muted;
+    g.font = font(700, 36);
+    g.fillText(s.ch.peak, P, 268);
+    g.fillStyle = color.text;
+    g.font = font(800, 230);
+    const peakText = fmt(result.peak);
+    g.fillText(peakText, P - 8, 470);
+    const peakW = g.measureText(peakText).width;
+    g.fillStyle = color.muted;
+    g.font = font(700, 64);
+    g.fillText(u, P + peakW + 8, 470);
+
+    // Rank and its line.
+    g.fillStyle = color.accent;
+    g.font = font(800, 88);
+    g.fillText(rank.title, P, 600);
+    if (record) {
+      const rw = g.measureText(rank.title).width;
+      g.font = font(700, 30);
+      const badge = s.ch.newBest;
+      const bw = g.measureText(badge).width + 40;
+      const bx = P + rw + 28;
+      g.fillStyle = '#fff0ea';
+      roundRect(g, bx, 548, bw, 52, 26);
+      g.fill();
+      g.fillStyle = color.accent;
+      g.fillText(badge, bx + 20, 585);
+    }
+    g.fillStyle = '#4a4d55';
+    g.font = font(500, 38);
+    wrapText(rank.line, S - P * 2, (text) => g.measureText(text).width)
+      .slice(0, 2)
+      .forEach((line, i) => g.fillText(line, P, 670 + i * 54));
+
+    // Level over the 3 seconds.
+    const top = 760;
+    const h = 118;
+    const lo = Math.max(SCALE_MIN, Math.min(...trace, result.avg) - 10);
+    const hi = Math.max(lo + 20, Math.max(...trace) + 4);
+    const yOf = (db: number) => top + h * (1 - (db - lo) / (hi - lo));
+    g.fillStyle = '#f2f3f5';
+    roundRect(g, P, top - 14, S - P * 2, h + 28, 18);
+    g.fill();
+    if (trace.length > 1) {
+      const x0 = P + 20;
+      const span = S - P * 2 - 40;
+      g.beginPath();
+      trace.forEach((db, i) => {
+        const x = x0 + (span * i) / (trace.length - 1);
+        if (i === 0) g.moveTo(x, yOf(db));
+        else g.lineTo(x, yOf(db));
+      });
+      g.strokeStyle = color.accent;
+      g.lineWidth = 5;
+      g.lineJoin = 'round';
+      g.stroke();
+      g.lineTo(x0 + span, top + h);
+      g.lineTo(x0, top + h);
+      g.closePath();
+      g.globalAlpha = 0.14;
+      g.fillStyle = color.accent;
+      g.fill();
+      g.globalAlpha = 1;
+    }
+
+    // Footer: average and date, then the note and the URL (one row if they fit, else two).
+    g.fillStyle = color.text;
+    g.font = font(700, 34);
+    g.fillText(`${s.ch.avg} ${fmt(result.avg)} ${u}`, P, 958);
+    g.textAlign = 'right';
+    g.fillStyle = color.muted;
+    g.font = font(500, 30);
+    g.fillText(formatDate(new Date(), locale), S - P, 958);
+    g.textAlign = 'left';
+    const noteFont = font(500, 26);
+    const urlFont = font(700, 26);
+    g.font = noteFont;
+    const noteW = g.measureText(s.ch.cardNote).width;
+    g.font = urlFont;
+    const urlW = g.measureText(s.url).width;
+    const oneRow = noteW + urlW + 40 <= S - P * 2;
+    g.font = noteFont;
+    g.fillText(s.ch.cardNote, P, oneRow ? 1024 : 1004);
+    g.fillStyle = color.text;
+    g.font = urlFont;
+    if (oneRow) {
+      g.textAlign = 'right';
+      g.fillText(s.url, S - P, 1024);
+      g.textAlign = 'left';
+    } else g.fillText(s.url, P, 1040);
+    return card;
+  }
+
+  async function makeCard(result: ChallengeResult, trace: number[], u: string, record: boolean) {
+    try {
+      await document.fonts?.ready;
+    } catch {
+      /* fonts API unavailable */
+    }
+    const card = renderCard(result, trace.length ? trace : [result.peak], u, record);
+    const blob = await new Promise<Blob | null>((resolve) => card.toBlob(resolve, 'image/png'));
+    if (!blob || cardResult !== result) return;
+    cardBlob = blob;
+    if (cardUrl) URL.revokeObjectURL(cardUrl);
+    cardUrl = URL.createObjectURL(blob);
+    chCard.src = cardUrl;
+    chCard.hidden = false;
+    chDownload.disabled = false;
+    const file = new File([blob], cardFilename(new Date(), result.peak), { type: 'image/png' });
+    chShare.hidden = !(navigator.canShare && navigator.canShare({ files: [file] }));
+  }
+
+  async function shareCard() {
+    if (!cardBlob || !cardResult) return;
+    const file = new File([cardBlob], cardFilename(new Date(), cardResult.peak), { type: 'image/png' });
+    const text = t(s.ch.shareText, { db: `${fmt(cardResult.peak)} ${unit(chWeighting)}`, rank: s.ch.ranks[cardResult.rank].title });
+    try {
+      await navigator.share({ files: [file], text, url: `https://${s.url}/` });
+    } catch {
+      /* cancelled */
+    }
+  }
+
+  // ---------- Full screen + keep the screen awake ----------
+  let wakeLock: WakeLockSentinel | null = null;
+
+  async function keepAwake(on: boolean) {
+    try {
+      if (on && !wakeLock && 'wakeLock' in navigator) {
+        wakeLock = await navigator.wakeLock.request('screen');
+        wakeLock.addEventListener('release', () => (wakeLock = null));
+      } else if (!on && wakeLock) {
+        await wakeLock.release();
+        wakeLock = null;
+      }
+    } catch {
+      /* not allowed (battery saver, unsupported); the meter still works */
+    }
+  }
+
+  // Android and desktop use the Fullscreen API; iPhone Safari has none for elements,
+  // so the stage then covers the page as a fixed layer instead.
+  type WebkitDoc = Document & { webkitFullscreenElement?: Element; webkitFullscreenEnabled?: boolean; webkitExitFullscreen?: () => void };
+  type WebkitEl = HTMLElement & { webkitRequestFullscreen?: () => void };
+  const doc = document as WebkitDoc;
+  const native = () => (doc.fullscreenElement ?? doc.webkitFullscreenElement) === stage;
+
+  async function enterFull() {
+    const el = stage as WebkitEl;
+    stage.classList.add('is-full');
+    fsLabel.textContent = s.exitFullscreen;
+    fsBtn.title = s.exitFullscreen;
+    void keepAwake(true);
+    try {
+      // Request first, while the click still counts as a user gesture.
+      if (doc.fullscreenEnabled && el.requestFullscreen) return void (await el.requestFullscreen());
+      if (doc.webkitFullscreenEnabled && el.webkitRequestFullscreen) return void el.webkitRequestFullscreen();
+    } catch {
+      /* fall through to the fixed layer */
+    }
+    stage.classList.add('is-overlay');
+    document.documentElement.classList.add('dm-lock');
+  }
+
+  function leaveFull() {
+    stage.classList.remove('is-full', 'is-overlay');
+    document.documentElement.classList.remove('dm-lock');
+    fsLabel.textContent = s.fullscreen;
+    fsBtn.title = s.fullscreen;
+    void keepAwake(false);
+  }
+
+  fsBtn.addEventListener('click', () => {
+    if (!stage.classList.contains('is-full')) void enterFull();
+    else if (native()) void (document.exitFullscreen ? document.exitFullscreen() : doc.webkitExitFullscreen?.());
+    else leaveFull();
+  });
+  for (const type of ['fullscreenchange', 'webkitfullscreenchange']) {
+    document.addEventListener(type, () => {
+      if (!native() && !stage.classList.contains('is-overlay')) leaveFull();
+    });
+  }
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && stage.classList.contains('is-overlay')) leaveFull();
+  });
+
+  // ---------- Events ----------
+  startBtn.addEventListener('click', () => void start());
+  stopBtn.addEventListener('click', stop);
+  resetBtn.addEventListener('click', () => resetMeasurement());
+  resumeBtn.addEventListener('click', () => void ctx?.resume().then(updateSuspended, updateSuspended));
+  tagBtn.addEventListener('click', () => {
+    if (stage.classList.contains('is-full')) return;
+    settingsBox.open = true;
+    settingsBox.scrollIntoView({ block: 'start', behavior: 'smooth' });
+  });
+  for (const radio of weightRadios) {
+    radio.addEventListener('change', () => {
+      prefs.weighting = radio.value === 'Z' ? 'Z' : 'A';
+      savePref(PREF_KEY, prefs);
+      refresh();
+    });
+  }
+  for (const radio of timeRadios) {
+    radio.addEventListener('change', () => {
+      prefs.time = radio.value === 'slow' ? 'slow' : 'fast';
+      savePref(PREF_KEY, prefs);
+      refresh();
+    });
+  }
+  offsetRange.addEventListener('input', () => setOffset(Number(offsetRange.value), offsetRange));
+  offsetNum.addEventListener('change', () => {
+    const v = parseNumber(offsetNum.value);
+    setOffset(Number.isFinite(v) ? v : prefs.offset, undefined);
+  });
+  offsetReset.addEventListener('click', () => {
+    setOffset(DEFAULT_OFFSET);
+    calStatus.textContent = calHintText;
+  });
+  calApply.addEventListener('click', calibrate);
+  calRef.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') calibrate();
+  });
+  deviceSelect.addEventListener('change', () => {
+    prefs.deviceId = deviceSelect.value;
+    savePref(PREF_KEY, prefs);
+    if (running) void start(deviceSelect.value, true);
+  });
+  navigator.mediaDevices?.addEventListener?.('devicechange', () => {
+    if (running) void refreshDevices();
+  });
+
+  chStart.addEventListener('click', () => void startChallenge());
+  chAgain.addEventListener('click', () => void startChallenge());
+  chCancel.addEventListener('click', cancelChallenge);
+  chDownload.addEventListener('click', () => {
+    if (cardBlob && cardResult) downloadBlob(cardBlob, cardFilename(new Date(), cardResult.peak));
+  });
+  chShare.addEventListener('click', () => void shareCard());
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState !== 'visible') return;
+    if (running && ctx && ctx.state !== 'running') void ctx.resume().then(updateSuspended, updateSuspended);
+    if (stage.classList.contains('is-full')) void keepAwake(true);
+  });
+  window.addEventListener('pagehide', () => {
+    if (running) stop();
+  });
+  if (typeof ResizeObserver !== 'undefined') {
+    new ResizeObserver(() => drawHistory(performance.now())).observe(canvas);
+  }
+
+  writeForm();
+  renderBest();
+  render(performance.now(), true);
+  drawHistory(performance.now());
+</script>
+
+<style>
+  [hidden] {
+    display: none !important;
+  }
+
+  /* ---------- Status ---------- */
+  .dm-state {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--muted);
+  }
+  .dm-dot {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: var(--border-strong);
+  }
+  .dm-state[data-state='live'] {
+    color: var(--success);
+  }
+  .dm-state[data-state='live'] .dm-dot {
+    background: var(--success);
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .dm-state[data-state='live'] .dm-dot,
+    .dm-state[data-state='starting'] .dm-dot {
+      animation: dm-pulse 1.4s ease-in-out infinite;
+    }
+  }
+  @keyframes dm-pulse {
+    50% {
+      opacity: 0.35;
+    }
+  }
+  .dm-error {
+    display: grid;
+    gap: 4px;
+  }
+  .dm-error ol {
+    margin: 4px 0 0;
+    padding-left: 20px;
+    color: var(--text-2);
+  }
+  .dm-note {
+    margin: 0;
+    color: var(--warning);
+    background: color-mix(in oklab, var(--warning) 10%, transparent);
+  }
+  .dm-suspended {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  /* ---------- Stage ---------- */
+  .dm-stage {
+    --zone: var(--border-strong);
+    container-type: inline-size;
+    display: grid;
+    gap: 12px;
+    padding: 14px 16px 16px;
+    border-radius: var(--radius);
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+  }
+  .dm-stage[data-zone='quiet'] {
+    --zone: var(--success);
+  }
+  .dm-stage[data-zone='moderate'] {
+    --zone: var(--warning);
+  }
+  .dm-stage[data-zone='loud'] {
+    --zone: var(--danger);
+  }
+  .dm-stage-top {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px 10px;
+  }
+  .dm-tag {
+    padding: 3px 10px;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-2);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    cursor: pointer;
+    font-variant-numeric: tabular-nums;
+  }
+  .dm-tag:hover {
+    border-color: var(--border-strong);
+  }
+  .dm-stage-actions {
+    display: flex;
+    gap: 2px;
+    margin-inline-start: auto;
+  }
+  .dm-main {
+    display: grid;
+    gap: 14px;
+    align-items: center;
+  }
+  .dm-gauge {
+    container-type: inline-size;
+    position: relative;
+    width: 100%;
+    max-width: 440px;
+    justify-self: center;
+  }
+  .dm-gauge-svg {
+    display: block;
+    width: 100%;
+    height: auto;
+    overflow: visible;
+  }
+  .dm-track,
+  .dm-value-arc {
+    fill: none;
+    stroke-width: 15;
+  }
+  .dm-track {
+    stroke: color-mix(in oklab, var(--border-strong) 70%, var(--surface));
+  }
+  .dm-value-arc {
+    stroke: var(--zone);
+    transition: stroke 0.3s;
+  }
+  .dm-zone {
+    fill: none;
+    stroke-width: 3;
+  }
+  .dm-zone-quiet {
+    stroke: color-mix(in oklab, var(--success) 55%, transparent);
+  }
+  .dm-zone-moderate {
+    stroke: color-mix(in oklab, var(--warning) 65%, transparent);
+  }
+  .dm-zone-loud {
+    stroke: color-mix(in oklab, var(--danger) 65%, transparent);
+  }
+  .dm-tick {
+    stroke: var(--border-strong);
+    stroke-width: 1.5;
+  }
+  .dm-max-mark line {
+    stroke: var(--text);
+    stroke-width: 3;
+    stroke-linecap: round;
+  }
+  .dm-max-mark {
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+  .dm-label {
+    font-size: 11px;
+    font-weight: 600;
+    fill: var(--muted);
+    text-anchor: middle;
+    dominant-baseline: middle;
+    font-variant-numeric: tabular-nums;
+  }
+  .dm-readout {
+    position: absolute;
+    left: 15%;
+    right: 15%;
+    bottom: 0;
+    display: grid;
+    justify-items: center;
+    line-height: 1;
+  }
+  .dm-value {
+    font-family: var(--display);
+    font-size: clamp(38px, 18cqw, 100px);
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    font-variant-numeric: tabular-nums;
+    color: var(--text);
+  }
+  .dm-unit {
+    margin-top: 4px;
+    font-size: clamp(14px, 5cqw, 22px);
+    font-weight: 700;
+    color: var(--muted);
+  }
+  .dm-side {
+    display: grid;
+    gap: 10px;
+    min-width: 0;
+  }
+  .dm-near {
+    margin: 0;
+    min-height: 1.5em;
+    font-size: 15px;
+    font-weight: 600;
+    text-align: center;
+    color: var(--text-2);
+  }
+  .dm-stats {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+  }
+  .dm-stat {
+    display: grid;
+    gap: 2px;
+    padding: 8px 6px;
+    text-align: center;
+    background: var(--surface);
+    border-radius: var(--radius-sm);
+    min-width: 0;
+  }
+  .dm-stat-label {
+    font-size: 12px;
+    color: var(--muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .dm-stat-value {
+    font-size: 19px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.25;
+  }
+  .dm-history {
+    display: block;
+    width: 100%;
+    height: 132px;
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+  }
+
+  /* Narrow stage: icon-only buttons so the top row stays on one line. */
+  @container (max-width: 459px) {
+    .dm-btn-label {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip: rect(0 0 0 0);
+      white-space: nowrap;
+    }
+    .dm-stage-actions .btn {
+      padding: 4px 8px;
+    }
+  }
+  @container (min-width: 460px) {
+    .dm-stats {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+  }
+  /* Wide stage: gauge on the left, numbers and graph on the right. */
+  @container (min-width: 620px) {
+    .dm-main {
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
+      gap: 20px;
+    }
+    .dm-near {
+      text-align: start;
+    }
+    .dm-stats {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  /* Full screen (native, or the fixed layer on iPhone). */
+  .dm-stage.is-full {
+    align-content: stretch;
+    grid-template-rows: auto minmax(0, 1fr);
+    min-height: 100dvh;
+    padding: max(14px, env(safe-area-inset-top)) max(18px, env(safe-area-inset-right)) max(14px, env(safe-area-inset-bottom))
+      max(18px, env(safe-area-inset-left));
+    border: 0;
+    border-radius: 0;
+    background: var(--bg);
+    box-sizing: border-box;
+  }
+  .dm-stage.is-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    height: 100dvh;
+    overflow: auto;
+  }
+  :global(html.dm-lock),
+  :global(html.dm-lock body) {
+    overflow: hidden;
+  }
+  .dm-stage.is-full .dm-main {
+    grid-template-rows: auto minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr);
+    align-items: stretch;
+    min-height: 0;
+  }
+  .dm-stage.is-full .dm-gauge {
+    max-width: min(100%, 62vh, 760px);
+  }
+  .dm-stage.is-full .dm-side {
+    grid-template-rows: auto auto minmax(120px, 1fr);
+    min-height: 0;
+  }
+  .dm-stage.is-full .dm-near {
+    font-size: clamp(16px, min(3vw, 3vh), 26px);
+    text-align: center;
+  }
+  .dm-stage.is-full .dm-stats {
+    width: min(100%, 1100px);
+    justify-self: center;
+  }
+  .dm-stage.is-full .dm-stat-value {
+    font-size: clamp(18px, min(3.4vw, 4vh), 40px);
+  }
+  .dm-stage.is-full .dm-stat-label {
+    font-size: clamp(12px, min(1.8vw, 2.2vh), 18px);
+  }
+  .dm-stage.is-full .dm-history {
+    height: 100%;
+    min-height: 120px;
+  }
+  /* A phone on its side (or any wide, short screen): gauge left, numbers and graph right. */
+  @media (orientation: landscape) {
+    .dm-stage.is-full .dm-main {
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      grid-template-rows: minmax(0, 1fr);
+      align-items: center;
+      gap: 3vw;
+    }
+    .dm-stage.is-full .dm-gauge {
+      max-width: min(100%, 120vh);
+    }
+    .dm-stage.is-full .dm-side {
+      height: 100%;
+      align-content: center;
+      grid-template-rows: auto auto minmax(90px, 1fr);
+    }
+    .dm-stage.is-full .dm-stats {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+  @media (orientation: landscape) and (max-height: 500px) {
+    .dm-stage.is-full {
+      gap: 6px;
+      padding-top: max(8px, env(safe-area-inset-top));
+      padding-bottom: max(8px, env(safe-area-inset-bottom));
+    }
+    .dm-stage.is-full .dm-stat {
+      padding: 4px 6px;
+    }
+    .dm-stage.is-full .dm-stat-value {
+      font-size: clamp(16px, 6vh, 28px);
+    }
+  }
+
+  /* ---------- Settings ---------- */
+  .dm-settings {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+  }
+  .dm-settings summary {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-2);
+    cursor: pointer;
+  }
+  .dm-settings[open] summary {
+    border-bottom: 1px solid var(--border);
+  }
+  .dm-settings-body {
+    display: grid;
+    gap: 18px;
+    padding: 14px;
+  }
+  .dm-settings-body .hint {
+    margin: 0;
+  }
+  .dm-settings .seg {
+    justify-self: start;
+  }
+  .dm-offset {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 96px;
+    align-items: center;
+    gap: 12px;
+  }
+  .dm-cal-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 10px;
+  }
+
+  /* ---------- Scream challenge ---------- */
+  .dm-ch {
+    display: grid;
+    gap: 12px;
+    padding: 16px;
+    border-radius: var(--radius);
+    background: var(--accent-soft);
+    border: 1px solid color-mix(in oklab, var(--accent) 14%, transparent);
+  }
+  .dm-ch-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px 12px;
+  }
+  .dm-ch-title {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0;
+    font-size: 19px;
+    color: var(--text);
+  }
+  .dm-ch-title :global(svg) {
+    color: var(--accent);
+  }
+  .dm-ch-best {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-2);
+    font-variant-numeric: tabular-nums;
+  }
+  .dm-ch-intro {
+    margin: 0;
+    font-size: 15px;
+    color: var(--text-2);
+  }
+  .dm-ch-idle {
+    display: flex;
+    justify-content: center;
+    padding: 6px 0;
+  }
+  .dm-ch-go {
+    min-height: 48px;
+    padding: 10px 24px;
+    font-size: 17px;
+  }
+  .dm-ch-live {
+    display: grid;
+    justify-items: center;
+    gap: 8px;
+    padding: 8px 0;
+    text-align: center;
+  }
+  .dm-ch-big {
+    font-family: var(--display);
+    font-size: clamp(64px, 18vw, 112px);
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: -0.03em;
+    font-variant-numeric: tabular-nums;
+    color: var(--text);
+  }
+  .dm-ch-live[data-phase='measure'] .dm-ch-big {
+    color: var(--accent);
+  }
+  .dm-ch-caption {
+    font-size: 20px;
+    font-weight: 800;
+    color: var(--text-2);
+  }
+  .dm-ch-live[data-phase='measure'] .dm-ch-caption {
+    color: var(--accent);
+  }
+  .dm-ch-bar {
+    width: min(100%, 360px);
+    height: 10px;
+    border-radius: 999px;
+    overflow: hidden;
+    background: color-mix(in oklab, var(--accent) 14%, var(--surface));
+  }
+  .dm-ch-bar span {
+    display: block;
+    height: 100%;
+    background: var(--accent);
+    transform: scaleX(0);
+    transform-origin: left center;
+  }
+  .dm-ch-result {
+    display: grid;
+    gap: 16px;
+    align-items: center;
+  }
+  @media (min-width: 720px) {
+    .dm-ch-result {
+      grid-template-columns: minmax(0, 1fr) 220px;
+    }
+  }
+  .dm-ch-summary {
+    display: grid;
+    gap: 10px;
+    min-width: 0;
+  }
+  .dm-ch-new {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    justify-self: start;
+    margin: 0;
+    padding: 3px 12px;
+    font-size: 14px;
+    font-weight: 800;
+    color: var(--accent);
+    background: var(--surface);
+    border-radius: 999px;
+  }
+  .dm-ch-rank {
+    margin: 0;
+    font-family: var(--display);
+    font-size: clamp(30px, 7vw, 40px);
+    font-weight: 800;
+    line-height: 1.15;
+    color: var(--accent);
+  }
+  .dm-ch-line {
+    margin: 0;
+    font-size: 16px;
+    color: var(--text-2);
+  }
+  .dm-ch-scores {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+  .dm-ch-scores .stat {
+    background: var(--surface);
+  }
+  .dm-ch-scores .stat-value {
+    white-space: nowrap;
+  }
+  .dm-ch-unit {
+    margin-left: 4px;
+    font-size: 0.6em;
+    color: var(--muted);
+  }
+  .dm-ch-clip {
+    margin: 0;
+    color: var(--warning);
+  }
+  .dm-ch-card {
+    display: block;
+    width: 100%;
+    max-width: 220px;
+    height: auto;
+    justify-self: center;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow);
+    background: var(--surface);
+  }
+  .dm-ch-caution {
+    margin: 0;
+  }
+  .dm-ch .notice {
+    margin: 0;
+  }
+
+  /* ---------- Reference chart ---------- */
+  .dm-ref {
+    display: grid;
+    gap: 10px;
+  }
+  .dm-ref-title {
+    margin: 0;
+    font-size: 17px;
+  }
+  .dm-ref .hint {
+    margin: 0;
+  }
+  .dm-ref-table td {
+    white-space: normal;
+  }
+  .dm-ref-table td:first-child,
+  .dm-ref-table th:first-child {
+    width: 1%;
+    white-space: nowrap;
+    font-weight: 700;
+    border-left: 4px solid transparent;
+  }
+  .dm-ref-table tr[data-zone='quiet'] td:first-child {
+    border-left-color: color-mix(in oklab, var(--success) 45%, transparent);
+  }
+  .dm-ref-table tr[data-zone='moderate'] td:first-child {
+    border-left-color: color-mix(in oklab, var(--warning) 55%, transparent);
+  }
+  .dm-ref-table tr[data-zone='loud'] td:first-child {
+    border-left-color: color-mix(in oklab, var(--danger) 55%, transparent);
+  }
+  .dm-ref-table tr {
+    transition: background 0.2s;
+  }
+  .dm-ref-table tr.is-near td {
+    background: var(--accent-soft);
+    color: var(--text);
+    font-weight: 700;
+  }
+
+  .dm-privacy {
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+    margin: 0;
+  }
+  .dm-privacy :global(svg) {
+    flex: none;
+    margin-top: 1px;
+    color: var(--success);
+  }
+</style>
