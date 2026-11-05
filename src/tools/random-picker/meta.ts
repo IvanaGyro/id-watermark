@@ -57,7 +57,7 @@ export default defineTool({
       a: '名單不會上傳到任何伺服器。為了方便下次使用，名單與設定只會保存在你這台裝置的瀏覽器中，按「清除」即可移除。',
     },
   ],
-  related: ['random-number', 'password-generator', 'split-bill', 'moon-blocks', 'scratch-card', 'line-tools'],
+  related: ['random-number', 'ichiban-kuji', 'password-generator', 'split-bill', 'moon-blocks', 'scratch-card', 'line-tools'],
   priority: 70,
   updated: '2026-10-29',
 });

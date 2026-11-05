@@ -82,7 +82,7 @@ export default defineTool({
       a: '連結裡包含卡片內容，所以比一般網址長，聊天 App 通常都能正常開啟。如果對方說打不開，可能是複製時少了一段，請改用「分享」按鈕或 QR Code 傳送。',
     },
   ],
-  related: ['spin-wheel', 'random-picker', 'qr-code-generator', 'fancy-text', 'countdown-timer'],
+  related: ['spin-wheel', 'ichiban-kuji', 'random-picker', 'qr-code-generator', 'fancy-text', 'countdown-timer'],
   priority: 50,
   updated: '2026-11-04',
 });

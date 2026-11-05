@@ -88,7 +88,7 @@ export default defineTool({
       a: '送信されません。処理はすべてブラウザ内で行われ、リストと設定はお使いの端末にだけ保存されます。「クリア」で削除できます。',
     },
   ],
-  related: ['spin-wheel', 'random-number', 'countdown-timer', 'scratch-card', 'password-generator'],
+  related: ['spin-wheel', 'ichiban-kuji', 'random-number', 'countdown-timer', 'scratch-card', 'password-generator'],
   priority: 70,
   updated: '2026-10-29',
 });

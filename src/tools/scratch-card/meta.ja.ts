@@ -77,7 +77,7 @@ export default defineTool({
       a: 'リンクにカードの内容が入っているため長めですが、通常はそのまま開けます。開けない場合はコピーの途中で切れた可能性があるので、「共有」ボタンや QR コードで送ってください。',
     },
   ],
-  related: ['spin-wheel', 'random-picker', 'qr-code-generator', 'fancy-text', 'countdown-timer'],
+  related: ['spin-wheel', 'ichiban-kuji', 'random-picker', 'qr-code-generator', 'fancy-text', 'countdown-timer'],
   priority: 50,
   updated: '2026-11-04',
 });

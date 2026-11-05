@@ -76,7 +76,7 @@ export default defineTool({
       a: 'The link carries the card, so it is longer than usual, but messaging apps open it fine. If it does not work, part of it was probably cut off while copying; send it with the Share button or the QR code instead.',
     },
   ],
-  related: ['spin-wheel', 'random-picker', 'qr-code-generator', 'fancy-text', 'countdown-timer'],
+  related: ['spin-wheel', 'ichiban-kuji', 'random-picker', 'qr-code-generator', 'fancy-text', 'countdown-timer'],
   priority: 50,
   updated: '2026-11-04',
 });
