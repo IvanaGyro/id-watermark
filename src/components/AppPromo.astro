@@ -14,6 +14,7 @@ interface Props {
 
 const { locale, placement, promo = fishingFestival, class: className } = Astro.props;
 const text = promo.text[locale];
+const pitch = text.pitchFor?.[placement] ?? text.pitch;
 const href = promoUrl(promo, locale, placement);
 ---
 
@@ -27,7 +28,7 @@ const href = promoUrl(promo, locale, placement);
       <img class="app-promo-icon" src={promo.icon.src} width="44" height="44" alt="" loading="lazy" decoding="async" />
       <strong class="app-promo-name">{text.name}</strong>
     </div>
-    <p class="app-promo-pitch">{text.pitch}</p>
+    <p class="app-promo-pitch">{pitch}</p>
     <a class="app-promo-cta" href={href} target="_blank" rel="noopener">
       <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
         <path

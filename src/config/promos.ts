@@ -6,7 +6,10 @@ export interface AppPromoText {
   /** Small chip above the app name, e.g. 推薦遊戲. */
   badge: string;
   name: string;
+  /** Default pitch. */
   pitch: string;
+  /** Pitch tuned to one placement (the `placement` prop of AppPromo), e.g. the ichiban kuji page. */
+  pitchFor?: Record<string, string>;
   cta: string;
   /** Alt text for the banner image. */
   alt: string;
@@ -30,21 +33,31 @@ export const fishingFestival: AppPromo = {
     'zh-TW': {
       badge: '推薦遊戲',
       name: '伊萊雅－大漁祭',
-      pitch: '抓準時機起鉤、穿越八片海域，釣到的魚還能換成祭典抽籤。喜歡抽一番賞的你，來試試釣魚版的抽獎吧！',
+      pitch: '抓準時機起鉤、穿越八片海域，每一次漁獲都能換成祭典抽籤，慢慢收集屬於你的魚類圖鑑。',
+      pitchFor: {
+        'ichiban-kuji': '抓準時機起鉤、穿越八片海域，釣到的魚還能換成祭典抽籤。喜歡抽一番賞的你，來試試釣魚版的抽獎吧！',
+      },
       cta: 'Google Play 免費下載',
       alt: '《伊萊雅－大漁祭》：在祭典碼頭釣魚的女孩與一張刮開的抽獎券',
     },
     en: {
       badge: 'Featured game',
       name: 'Iraiya - Great Fishing Festival',
-      pitch: 'Time the hook, cross eight seas and turn every catch into a festival prize draw. A pixel fishing game for anyone who loves a good kuji pull.',
+      pitch: 'Time the hook, cross eight seas and turn every catch into a festival prize draw while you fill out your fish collection.',
+      pitchFor: {
+        'ichiban-kuji':
+          'Time the hook, cross eight seas and turn every catch into a festival prize draw. A pixel fishing game for anyone who loves a good kuji pull.',
+      },
       cta: 'Get it free on Google Play',
       alt: 'Iraiya - Great Fishing Festival: a girl fishing on a festival pier next to a torn-open prize ticket',
     },
     ja: {
       badge: 'おすすめゲーム',
       name: 'イライヤ－大漁祭',
-      pitch: '起鉤のタイミングを合わせて 8 つの海域を巡り、釣った魚で祭りのくじを引くピクセル釣りゲーム。くじ好きの方にぜひ。',
+      pitch: '起鉤のタイミングを合わせて 8 つの海域を巡り、釣った魚で祭りのくじを引きながら魚図鑑を集めるピクセル釣りゲームです。',
+      pitchFor: {
+        'ichiban-kuji': '起鉤のタイミングを合わせて 8 つの海域を巡り、釣った魚で祭りのくじを引くピクセル釣りゲーム。くじ好きの方にぜひ。',
+      },
       cta: 'Google Play で無料ダウンロード',
       alt: 'イライヤ－大漁祭：祭りの桟橋で釣りをする少女と、めくれたくじ券',
     },
