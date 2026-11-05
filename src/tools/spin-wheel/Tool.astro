@@ -653,6 +653,8 @@ const presets = presetsFor(locale);
     justify-items: center;
     gap: 14px;
     min-width: 0;
+    /* The spinning canvas's rotated box is wider than the wheel; clip it sideways so narrow screens don't scroll. */
+    overflow-x: clip;
   }
   .sw-stage:fullscreen {
     background: var(--bg);
