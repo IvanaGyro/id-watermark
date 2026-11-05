@@ -1,0 +1,609 @@
+---
+import { i18nAttrs, pickStrings, type ToolProps } from '../../i18n/tool';
+import i18n from './i18n';
+
+type Props = ToolProps;
+const { locale = 'zh-TW' } = Astro.props;
+const s = pickStrings(i18n, locale);
+---
+
+<div class="tool" data-tool="japan-tax-refund" {...i18nAttrs(locale, s.client)}>
+  <div class="jr-layout">
+    <div class="jr-inputs">
+      <section class="jr-block" aria-labelledby="jr-receipts-title">
+        <div class="jr-head">
+          <h2 class="jr-title" id="jr-receipts-title">{s.receiptsTitle}</h2>
+          <div class="field">
+            <span class="label" id="jr-mode-label">{s.modeLabel}</span>
+            <div class="seg" role="radiogroup" aria-labelledby="jr-mode-label">
+              <label><input type="radio" name="jr-mode" value="gross" checked /><span>{s.modeGross}</span></label>
+              <label><input type="radio" name="jr-mode" value="net" /><span>{s.modeNet}</span></label>
+            </div>
+          </div>
+        </div>
+        <div class="jr-receipts" id="jr-receipts"></div>
+        <p class="hint">{s.counterHint}</p>
+        <div class="row">
+          <button class="btn" type="button" id="jr-add">{s.addReceipt}</button>
+          <button class="btn ghost" type="button" id="jr-clear" data-label={s.clearAll}>{s.clearAll}</button>
+        </div>
+      </section>
+
+      <section class="jr-block" aria-labelledby="jr-trip-title">
+        <h2 class="jr-title" id="jr-trip-title">{s.tripTitle}</h2>
+        <div class="jr-trip">
+          <label class="field">
+            <span class="label">{s.departureLabel}</span>
+            <input type="date" id="jr-departure" />
+            <span class="hint">{s.departureHint}</span>
+          </label>
+          <label class="field">
+            <span class="label">{s.feeLabel}</span>
+            <input type="text" id="jr-fee" inputmode="decimal" autocomplete="off" value="0" />
+            <span class="hint">{s.feeHint}</span>
+          </label>
+          <label class="field">
+            <span class="label">{s.currencyLabel}</span>
+            <select id="jr-currency">
+              {
+                s.currencies.map((c) => (
+                  <option value={c.code} selected={c.code === s.client.defaultCurrency}>
+                    {c.code} {c.name}
+                  </option>
+                ))
+              }
+            </select>
+          </label>
+        </div>
+      </section>
+    </div>
+
+    <aside class="jr-summary" aria-labelledby="jr-result-label">
+      <div class="result" aria-live="polite">
+        <div class="result-label" id="jr-result-label">{s.resultLabel}</div>
+        <div class="result-value" id="jr-main">—</div>
+        <div class="jr-approx" id="jr-approx"></div>
+        <div class="result-label" id="jr-sub"></div>
+      </div>
+      <div class="stats jr-stats">
+        <div class="stat"><span class="stat-value" id="jr-eligible">—</span><span class="stat-label">{s.statEligible}</span></div>
+        <div class="stat"><span class="stat-value" id="jr-refund">—</span><span class="stat-label">{s.statRefund}</span></div>
+        <div class="stat"><span class="stat-value" id="jr-fee-out">—</span><span class="stat-label">{s.statFee}</span></div>
+        <div class="stat"><span class="stat-value" id="jr-first">—</span><span class="stat-label">{s.statDeadline}</span></div>
+      </div>
+      <div class="table-wrap">
+        <table class="table jr-table">
+          <thead>
+            <tr><th>{s.tableHead[0]}</th><th class="num jr-col-net">{s.tableHead[1]}</th><th class="num">{s.tableHead[2]}</th><th>{s.tableHead[3]}</th></tr>
+          </thead>
+          <tbody id="jr-rows"></tbody>
+        </table>
+      </div>
+      <p class="hint" id="jr-rate"></p>
+    </aside>
+  </div>
+
+  <section class="jr-block jr-check" aria-labelledby="jr-check-title">
+    <h2 class="jr-title" id="jr-check-title">{s.checkTitle}</h2>
+    <ul>{s.checks.map((c) => <li>{c}</li>)}</ul>
+  </section>
+
+  <p class="hint">
+    {s.rateBefore}<a href="https://www.exchangerate-api.com" target="_blank" rel="noopener">Rates By Exchange Rate API</a>{s.rateAfter}
+  </p>
+</div>
+
+<template id="jr-receipt-template">
+  <div class="jr-receipt" data-receipt role="group">
+    <div class="jr-receipt-head">
+      <h3 class="jr-receipt-name"></h3>
+      <button class="btn small ghost jr-remove" type="button">{s.remove}</button>
+    </div>
+    <div class="jr-grid">
+      <label class="field">
+        <span class="label">{s.storeLabel}</span>
+        <input type="text" class="jr-store" maxlength="40" autocomplete="off" placeholder={s.storePlaceholder} />
+      </label>
+      <label class="field">
+        <span class="label">{s.dateLabel}</span>
+        <input type="date" class="jr-date" />
+      </label>
+      <label class="field">
+        <span class="label">{s.stdLabel}</span>
+        <input type="text" class="jr-std jr-amount" inputmode="numeric" autocomplete="off" placeholder="0" />
+        <span class="hint">{s.stdHint}</span>
+      </label>
+      <label class="field">
+        <span class="label">{s.foodLabel}</span>
+        <input type="text" class="jr-food jr-amount" inputmode="numeric" autocomplete="off" placeholder="0" />
+        <span class="hint">{s.foodHint}</span>
+      </label>
+    </div>
+    <div class="jr-status" aria-live="polite">
+      <span class="jr-pill"></span>
+      <span class="jr-detail"></span>
+    </div>
+  </div>
+</template>
+
+<script>
+  import { $, $$, loadPref, savePref } from '../../lib/client';
+  import { formatNumber, parseNumber } from '../../lib/format';
+  import { readI18n } from '../../i18n/client';
+  import { t } from '../../i18n/format';
+  import { LOCALE_INFO } from '../../i18n/locales';
+  import type { Strings } from './i18n';
+  import {
+    convert,
+    decimalsFor,
+    isFresh,
+    parseRateResponse,
+    RATE_API_URL,
+    type CachedRates,
+  } from '../exchange-rate/logic';
+  import {
+    clampFee,
+    daysBetween,
+    isValidDate,
+    MAX_RECEIPTS,
+    summarize,
+    type PriceMode,
+    type ReceiptInput,
+    type ReceiptResult,
+  } from './logic';
+
+  interface SavedReceipt {
+    store: string;
+    date: string;
+    std: string;
+    food: string;
+  }
+  interface Prefs {
+    mode: string;
+    departure: string;
+    fee: string;
+    currency: string;
+    receipts: SavedReceipt[];
+  }
+
+  // Same cache as the exchange-rate tool, so a visit to either warms both.
+  const RATE_CACHE_KEY = 'exchange-rate:cache';
+  const ZERO_DECIMALS = new Set(['TWD', 'KRW', 'JPY']);
+
+  const root = $('[data-tool="japan-tax-refund"]');
+  const { locale, s } = readI18n<Strings['client']>(root);
+  const intl = LOCALE_INFO[locale].intl;
+  const list = $('#jr-receipts', root);
+  const template = $<HTMLTemplateElement>('#jr-receipt-template');
+  const departure = $<HTMLInputElement>('#jr-departure', root);
+  const feeInput = $<HTMLInputElement>('#jr-fee', root);
+  const currency = $<HTMLSelectElement>('#jr-currency', root);
+  const addBtn = $<HTMLButtonElement>('#jr-add', root);
+  const clearBtn = $<HTMLButtonElement>('#jr-clear', root);
+
+  const yen = (n: number) => t(s.yen, { n: formatNumber(n, 0, locale) });
+  const set = (id: string, text: string) => ($(id, root).textContent = text);
+  const modeRadios = $$<HTMLInputElement>('input[name="jr-mode"]', root);
+  const mode = (): PriceMode => (modeRadios.find((r) => r.checked)?.value === 'net' ? 'net' : 'gross');
+
+  function today(): string {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }
+  function showDate(date: string): string {
+    const [y, m, d] = date.split('-').map(Number);
+    return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString(intl, {
+      timeZone: 'UTC',
+      year: 'numeric',
+      month: locale === 'en' ? 'short' : 'numeric',
+      day: 'numeric',
+    });
+  }
+  /** Whole yen from an input; '' is 0, anything else unparseable is NaN. */
+  function readYen(value: string): number {
+    const v = value.replace(/[¥￥円,\s]|日圓/g, '');
+    if (v === '') return 0;
+    const n = parseNumber(v);
+    return Number.isFinite(n) ? n : Number.NaN;
+  }
+
+  /* ---------- receipts ---------- */
+  const cards = () => $$<HTMLElement>('[data-receipt]', list);
+
+  function addCard(data: Partial<SavedReceipt> = {}) {
+    const node = template.content.firstElementChild!.cloneNode(true) as HTMLElement;
+    $<HTMLInputElement>('.jr-store', node).value = data.store ?? '';
+    $<HTMLInputElement>('.jr-date', node).value = data.date && isValidDate(data.date) ? data.date : today();
+    $<HTMLInputElement>('.jr-std', node).value = data.std ?? '';
+    $<HTMLInputElement>('.jr-food', node).value = data.food ?? '';
+    list.append(node);
+    return node;
+  }
+
+  function numberCards() {
+    cards().forEach((card, i) => {
+      const name = t(s.receiptName, { n: i + 1 });
+      $('.jr-receipt-name', card).textContent = name;
+      card.setAttribute('aria-label', name);
+      $('.jr-remove', card).setAttribute('aria-label', t(s.removeAria, { n: i + 1 }));
+    });
+    addBtn.disabled = cards().length >= MAX_RECEIPTS;
+  }
+
+  function readCard(card: HTMLElement): SavedReceipt {
+    return {
+      store: $<HTMLInputElement>('.jr-store', card).value,
+      date: $<HTMLInputElement>('.jr-date', card).value,
+      std: $<HTMLInputElement>('.jr-std', card).value,
+      food: $<HTMLInputElement>('.jr-food', card).value,
+    };
+  }
+
+  /* ---------- rates ---------- */
+  let rates: CachedRates | null = loadPref<CachedRates | null>(RATE_CACHE_KEY, null);
+  if (rates && !parseRateResponse({ result: 'success', base_code: 'TWD', rates: rates.data?.rates })) rates = null;
+  let rateOffline = false;
+
+  async function loadRates() {
+    if (rates && isFresh(rates, Date.now())) return;
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => controller.abort(), 8000);
+    try {
+      const res = await fetch(RATE_API_URL, { signal: controller.signal });
+      const data = parseRateResponse(await res.json());
+      if (!data) throw new Error('bad data');
+      rates = { fetchedAt: Date.now(), data };
+      savePref(RATE_CACHE_KEY, rates);
+      rateOffline = false;
+    } catch {
+      rateOffline = true;
+    } finally {
+      window.clearTimeout(timer);
+      render();
+    }
+  }
+
+  function money(yenAmount: number): string | null {
+    const code = currency.value;
+    if (!rates?.data.rates[code] || !rates.data.rates.JPY) return null;
+    const v = convert(yenAmount, 'JPY', code, rates.data.rates);
+    if (!Number.isFinite(v)) return null;
+    return t(s.approx, { amount: formatNumber(v, ZERO_DECIMALS.has(code) ? 0 : 2, locale), code });
+  }
+
+  function rateText(): string {
+    if (!rates) return rateOffline ? s.noRate : '';
+    const code = currency.value;
+    const r = convert(1, 'JPY', code, rates.data.rates);
+    if (!Number.isFinite(r)) return s.noRate;
+    const time = rates.data.updatedUnix
+      ? new Date(rates.data.updatedUnix * 1000).toLocaleDateString(intl, { month: 'numeric', day: 'numeric' })
+      : '';
+    const line = t(s.rateLine, { rate: formatNumber(r, decimalsFor(r), locale), code, time });
+    return rateOffline ? `${line} · ${t(s.rateCached, { time })}` : line;
+  }
+
+  /* ---------- render ---------- */
+  function statusDetail(r: ReceiptResult, m: PriceMode): string {
+    const now = today();
+    switch (r.status) {
+      case 'ok': {
+        const left = daysBetween(now, r.deadline!);
+        return left >= 0
+          ? t(s.deadline, { date: showDate(r.deadline!), days: left })
+          : t(s.deadlinePassed, { date: showDate(r.deadline!) });
+      }
+      case 'below':
+        return `${t(s.belowDetail, { short: yen(r.shortNet) })}${s.sentenceGap}${t(m === 'gross' ? s.topUpGross : s.topUpNet, { topUp: yen(r.topUp) })}`;
+      case 'old':
+        return s.oldDetail;
+      case 'expired':
+        return t(s.expiredDetail, { date: showDate(r.deadline!) });
+      case 'departBefore':
+        return s.departBeforeDetail;
+      default:
+        return '';
+    }
+  }
+
+  function cell(text: string, className = '') {
+    const td = document.createElement('td');
+    td.textContent = text;
+    if (className) td.className = className;
+    return td;
+  }
+
+  function render() {
+    const m = mode();
+    const saved = cards().map(readCard);
+    const inputs: ReceiptInput[] = saved.map((r) => ({ date: r.date, std: readYen(r.std), food: readYen(r.food) }));
+    const fee = clampFee(parseNumber(feeInput.value || '0'));
+    const sum = summarize(inputs, m, departure.value, fee);
+
+    const rows: HTMLTableRowElement[] = [];
+    cards().forEach((card, i) => {
+      const r = sum.results[i];
+      const pill = $('.jr-pill', card);
+      pill.textContent = r.status === 'ok' ? `${s.status.ok} ${yen(r.refund)}` : s.status[r.status];
+      pill.dataset.status = r.status;
+      $('.jr-detail', card).textContent = statusDetail(r, m);
+      card.dataset.status = r.status;
+      if (r.status === 'empty') return;
+      const tr = document.createElement('tr');
+      const name = saved[i].store.trim() || t(s.receiptName, { n: i + 1 });
+      tr.append(
+        cell(name),
+        cell(r.status === 'badAmount' ? '—' : yen(r.net), 'num jr-col-net'),
+        cell(r.status === 'ok' ? yen(r.refund) : '—', 'num'),
+        cell(s.status[r.status], `jr-cell-${r.status}`),
+      );
+      rows.push(tr);
+    });
+    $('#jr-rows', root).replaceChildren(...rows);
+    $('.jr-table', root).closest('.table-wrap')!.toggleAttribute('hidden', rows.length === 0);
+
+    set('#jr-main', sum.filled === 0 ? '—' : yen(sum.received));
+    set('#jr-approx', sum.filled === 0 ? '' : (money(sum.received) ?? ''));
+    set('#jr-sub', sum.filled === 0 ? s.emptyResult : sum.fee > 0 ? t(s.afterFee, { yen: yen(sum.refund), fee: yen(sum.fee) }) : '');
+    set('#jr-eligible', sum.filled === 0 ? '—' : t(s.eligible, { n: sum.eligible, total: sum.filled }));
+    set('#jr-refund', sum.filled === 0 ? '—' : yen(sum.refund));
+    set('#jr-fee-out', sum.filled === 0 ? '—' : yen(sum.fee));
+    set('#jr-first', sum.firstDeadline ? showDate(sum.firstDeadline) : '—');
+    set('#jr-rate', rateText());
+
+    savePref(s.prefKey, {
+      mode: m,
+      departure: departure.value,
+      fee: feeInput.value,
+      currency: currency.value,
+      receipts: saved,
+    } satisfies Prefs);
+  }
+
+  /* ---------- init ---------- */
+  const prefs = loadPref<Partial<Prefs>>(s.prefKey, {});
+  if (prefs.mode === 'net') modeRadios.forEach((r) => (r.checked = r.value === 'net'));
+  if (typeof prefs.departure === 'string' && isValidDate(prefs.departure)) departure.value = prefs.departure;
+  if (typeof prefs.fee === 'string') feeInput.value = prefs.fee;
+  if (prefs.currency && currency.querySelector(`option[value="${prefs.currency}"]`)) currency.value = prefs.currency;
+  const savedReceipts = Array.isArray(prefs.receipts) ? prefs.receipts.slice(0, MAX_RECEIPTS) : [];
+  if (savedReceipts.length) {
+    for (const r of savedReceipts) {
+      if (r && typeof r === 'object') {
+        addCard({
+          store: String(r.store ?? '').slice(0, 40),
+          date: String(r.date ?? ''),
+          std: String(r.std ?? ''),
+          food: String(r.food ?? ''),
+        });
+      }
+    }
+  }
+  if (cards().length === 0) addCard();
+  numberCards();
+
+  list.addEventListener('input', render);
+  list.addEventListener('click', (e) => {
+    const btn = (e.target as HTMLElement).closest('.jr-remove');
+    if (!btn) return;
+    btn.closest('[data-receipt]')!.remove();
+    if (cards().length === 0) addCard();
+    numberCards();
+    render();
+  });
+  addBtn.addEventListener('click', () => {
+    if (cards().length >= MAX_RECEIPTS) return;
+    const last = cards().at(-1);
+    const card = addCard({ date: last ? $<HTMLInputElement>('.jr-date', last).value : today() });
+    numberCards();
+    render();
+    $<HTMLInputElement>('.jr-std', card).focus();
+  });
+
+  let clearArmed = 0;
+  clearBtn.addEventListener('click', () => {
+    if (!clearArmed) {
+      clearBtn.textContent = s.confirmClear;
+      clearArmed = window.setTimeout(() => {
+        clearBtn.textContent = clearBtn.dataset.label ?? '';
+        clearArmed = 0;
+      }, 3000);
+      return;
+    }
+    window.clearTimeout(clearArmed);
+    clearArmed = 0;
+    clearBtn.textContent = clearBtn.dataset.label ?? '';
+    list.replaceChildren();
+    addCard();
+    numberCards();
+    render();
+  });
+
+  for (const r of modeRadios) r.addEventListener('change', render);
+  departure.addEventListener('input', render);
+  feeInput.addEventListener('input', render);
+  currency.addEventListener('change', render);
+  window.addEventListener('online', () => void loadRates());
+
+  render();
+  void loadRates();
+</script>
+
+<style>
+  .jr-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
+    align-items: start;
+  }
+  @media (min-width: 900px) {
+    .jr-layout {
+      grid-template-columns: minmax(0, 1fr) minmax(300px, 380px);
+    }
+    .jr-summary {
+      position: sticky;
+      top: 16px;
+    }
+  }
+  .jr-inputs,
+  .jr-summary {
+    display: grid;
+    gap: 16px;
+    min-width: 0;
+  }
+  .jr-block {
+    display: grid;
+    gap: 12px;
+    min-width: 0;
+  }
+  .jr-title {
+    margin: 0;
+    font-size: 17px;
+  }
+  .jr-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: end;
+    justify-content: space-between;
+    gap: 10px 16px;
+  }
+  .jr-receipts {
+    display: grid;
+    gap: 12px;
+  }
+  .jr-receipt {
+    display: grid;
+    gap: 12px;
+    min-width: 0;
+    margin: 0;
+    padding: 12px 14px 14px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface);
+  }
+  .jr-receipt[data-status='ok'] {
+    border-color: color-mix(in oklab, var(--success) 45%, var(--border));
+  }
+  .jr-receipt-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .jr-receipt-name {
+    margin: 0;
+    font-weight: 700;
+    font-size: 15px;
+  }
+  .jr-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+  }
+  @media (min-width: 520px) {
+    .jr-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+  .jr-amount {
+    font-size: 18px;
+    font-variant-numeric: tabular-nums;
+  }
+  .jr-status {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 4px 10px;
+    font-size: 13.5px;
+    color: var(--text-2);
+  }
+  .jr-pill {
+    flex: none;
+    padding: 2px 10px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 700;
+    background: var(--surface-2);
+    color: var(--muted);
+  }
+  .jr-pill[data-status='ok'] {
+    color: var(--success);
+    background: color-mix(in oklab, var(--success) 12%, transparent);
+  }
+  .jr-pill[data-status='below'],
+  .jr-pill[data-status='old'] {
+    color: #8a5a00;
+    background: #fff3d6;
+  }
+  .jr-pill[data-status='expired'],
+  .jr-pill[data-status='departBefore'],
+  .jr-pill[data-status='badAmount'],
+  .jr-pill[data-status='badDate'] {
+    color: var(--danger);
+    background: color-mix(in oklab, var(--danger) 10%, transparent);
+  }
+  .jr-detail {
+    min-width: 0;
+    flex: 1 1 220px;
+  }
+  .jr-detail:empty {
+    display: none;
+  }
+  .jr-trip {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+  }
+  @media (min-width: 640px) {
+    .jr-trip {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+  }
+  .jr-approx {
+    font-size: 18px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    min-height: 1.4em;
+  }
+  .jr-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .jr-stats .stat-value {
+    font-size: 18px;
+  }
+  .jr-table :global(td:first-child) {
+    max-width: 9em;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .jr-table :global(.jr-cell-ok) {
+    color: var(--success);
+    font-weight: 600;
+  }
+  .jr-table :global(.jr-cell-expired),
+  .jr-table :global(.jr-cell-departBefore),
+  .jr-table :global(.jr-cell-badAmount),
+  .jr-table :global(.jr-cell-badDate) {
+    color: var(--danger);
+  }
+  @media (max-width: 479px) {
+    .jr-table :global(.jr-col-net) {
+      display: none;
+    }
+  }
+  .jr-table :global(td:last-child) {
+    white-space: nowrap;
+  }
+  .table-wrap[hidden] {
+    display: none;
+  }
+  .jr-check ul {
+    margin: 0;
+    padding-left: 1.2em;
+    display: grid;
+    gap: 6px;
+    color: var(--text-2);
+    font-size: 14.5px;
+  }
+</style>

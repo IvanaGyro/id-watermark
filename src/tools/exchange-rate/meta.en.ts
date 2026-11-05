@@ -83,7 +83,7 @@ export default defineTool({
       a: 'Use it as a reference. For a transfer or a contract, the rate that counts is the one your bank or payment service quotes at the moment you send the money.',
     },
   ],
-  related: ['percentage-calculator', 'unit-converter', 'split-bill', 'compound-interest', 'calculator'],
+  related: ['japan-tax-refund', 'percentage-calculator', 'unit-converter', 'split-bill', 'compound-interest', 'calculator'],
   priority: 96,
   updated: '2026-10-29',
 });

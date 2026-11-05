@@ -81,7 +81,7 @@ export default defineTool({
       a: '若之前曾成功載入過匯率，離線時會使用最近一次的匯率並標示更新時間；第一次使用則需要連線取得匯率資料。',
     },
   ],
-  related: ['unit-converter', 'deposit-interest', 'percentage-calculator', 'timezone-converter'],
+  related: ['japan-tax-refund', 'unit-converter', 'deposit-interest', 'percentage-calculator', 'timezone-converter'],
   priority: 96,
   updated: '2026-10-29',
 });
