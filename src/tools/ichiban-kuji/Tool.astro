@@ -1,0 +1,1550 @@
+---
+import AppPromo from '../../components/AppPromo.astro';
+import { plural } from '../../i18n/format';
+import { localePath } from '../../i18n/locales';
+import { i18nAttrs, pickStrings, type ToolProps } from '../../i18n/tool';
+import { MAX_LABEL, MAX_NAME, MAX_PLAYER, MAX_TICKETS, MAX_TITLE, PRESET_IDS, presetsFor, tierColor, totalTickets } from './logic';
+import i18n from './i18n';
+
+type Props = ToolProps;
+const { locale = 'zh-TW' } = Astro.props;
+const s = pickStrings(i18n, locale);
+const initial = presetsFor(locale)[0].setup;
+const hashTool = localePath(locale, '/hash-generator/');
+---
+
+<div class="tool" data-tool="ichiban-kuji" {...i18nAttrs(locale, s.client)}>
+  <details class="ik-setup" id="ik-setup">
+    <summary>
+      <span class="ik-setup-title">{s.setupSummary}</span>
+      <span class="ik-setup-hint" id="ik-setup-hint">{s.setupHint}</span>
+    </summary>
+    <div class="ik-setup-body">
+      <div class="field">
+        <span class="label">{s.presetsLabel}</span>
+        <div class="row ik-presets">
+          {PRESET_IDS.map((id) => <button class="btn small" type="button" data-preset={id}>{s.presetNames[id]}</button>)}
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="ik-title-in">{s.titleLabel}</label>
+        <input id="ik-title-in" type="text" maxlength={MAX_TITLE} placeholder={s.titlePlaceholder} value={initial.title} />
+      </div>
+
+      <div class="ik-tiers" role="group" aria-labelledby="ik-tiers-head">
+        <div class="ik-tier-row ik-tier-head" id="ik-tiers-head" aria-hidden="true">
+          <span></span><span>{s.thTier}</span><span>{s.thPrize}</span><span>{s.thCount}</span><span></span>
+        </div>
+        <div id="ik-tier-list">
+          {
+            initial.tiers.map((t, i) => (
+              <div class="ik-tier-row">
+                <span class="ik-dot" style={`background:${tierColor(i).bg}`} />
+                <input class="ik-in-label" type="text" maxlength={MAX_LABEL} value={t.label} aria-label={s.client.labelAria} />
+                <input class="ik-in-name" type="text" maxlength={MAX_NAME} value={t.name} placeholder={s.client.prizePlaceholder} />
+                <input class="ik-in-count" type="number" min="0" max={MAX_TICKETS} step="1" inputmode="numeric" value={t.count} />
+                <button class="btn small ghost ik-del" type="button" aria-label={s.client.removeTier.replace('{label}', t.label)}>×</button>
+              </div>
+            ))
+          }
+        </div>
+        <button class="btn small ghost ik-add" type="button" id="ik-add">+ {s.addTier}</button>
+      </div>
+
+      <div class="ik-last">
+        <label class="check"><input id="ik-last-on" type="checkbox" checked={initial.last.enabled} /> {s.lastCheck}</label>
+        <input id="ik-last-name" type="text" maxlength={MAX_NAME} placeholder={s.lastNamePlaceholder} value={initial.last.name} aria-label={s.lastNamePlaceholder} />
+      </div>
+
+      <div class="field ik-price">
+        <label for="ik-price">{s.priceLabel}</label>
+        <div class="ik-price-in">
+          {s.pricePrefix && <span>{s.pricePrefix}</span>}
+          <input id="ik-price" type="number" min="0" step="any" inputmode="decimal" value={initial.price || ''} />
+          {s.priceSuffix && <span>{s.priceSuffix}</span>}
+        </div>
+      </div>
+
+      <div class="notice error" id="ik-setup-error" hidden></div>
+      <div class="row between">
+        <span class="hint" id="ik-total">{plural(locale, totalTickets(initial), s.client.total)}</span>
+        <button class="btn primary" type="button" id="ik-apply">{s.apply}</button>
+      </div>
+    </div>
+  </details>
+
+  <div class="ik-main" id="ik-stage">
+    <div class="ik-board-col">
+      <div class="ik-head">
+        <h3 class="ik-title" id="ik-title">{initial.title}</h3>
+        <span class="ik-left" id="ik-left"></span>
+        <button class="btn small ghost ik-fs" type="button" id="ik-fs" hidden>{s.client.fullscreen}</button>
+      </div>
+      <div class="ik-progress" aria-hidden="true"><span id="ik-bar"></span></div>
+      <p class="ik-latest" id="ik-latest" aria-live="polite"></p>
+
+      <div class="ik-controls">
+        <div class="field ik-player">
+          <label for="ik-player">{s.playerLabel}</label>
+          <input id="ik-player" type="text" maxlength={MAX_PLAYER} placeholder={s.playerPlaceholder} autocomplete="off" />
+        </div>
+        <div class="ik-draws">
+          <button class="btn primary" type="button" data-draw="1">{s.draw1}</button>
+          <button class="btn" type="button" data-draw="5">{s.draw5}</button>
+          <button class="btn" type="button" data-draw="10">{s.draw10}</button>
+          <button class="btn ghost" type="button" data-draw="all">{s.drawAll}</button>
+        </div>
+        <div class="row ik-sub">
+          <button class="btn small ghost" type="button" id="ik-undo">{s.undo}</button>
+          <button class="btn small ghost" type="button" id="ik-reshuffle">{s.reshuffle}</button>
+          <label class="check"><input id="ik-effects" type="checkbox" checked /> {s.effects}</label>
+          <label class="check"><input id="ik-sound" type="checkbox" /> {s.sound}</label>
+        </div>
+      </div>
+
+      <p class="hint ik-board-hint">{s.boardHint}</p>
+      <div class="ik-board" id="ik-board" role="group" aria-label={s.boardAria}></div>
+    </div>
+
+    <div class="ik-side">
+      <section class="ik-panel" aria-labelledby="ik-status-h">
+        <h3 class="ik-h" id="ik-status-h">{s.statusTitle}</h3>
+        <div class="table-wrap">
+          <table class="table ik-status">
+            <thead><tr><th>{s.thTier}</th><th class="num">{s.thLeft}</th><th class="num">{s.thNext}</th></tr></thead>
+            <tbody id="ik-status"></tbody>
+          </table>
+        </div>
+        <p class="hint ik-spend" id="ik-spend" hidden></p>
+      </section>
+
+      <AppPromo locale={locale} placement="ichiban-kuji" class="ik-promo" />
+
+      <details class="ik-panel ik-fold">
+        <summary>{s.calcTitle}</summary>
+        <div class="ik-calc">
+          <div class="field">
+            <label for="ik-calc-tier">{s.calcTier}</label>
+            <select id="ik-calc-tier"></select>
+          </div>
+          <div class="field">
+            <label for="ik-calc-n">{s.calcDraws}</label>
+            <input id="ik-calc-n" type="number" min="1" step="1" inputmode="numeric" value="10" />
+          </div>
+        </div>
+        <dl class="ik-calc-out" id="ik-calc-out"></dl>
+      </details>
+
+      <details class="ik-panel ik-fold">
+        <summary>{s.fairTitle}</summary>
+        <p class="hint">{s.fairHint}</p>
+        <span class="label">{s.hashLabel}</span>
+        <code class="ik-hash" id="ik-hash">…</code>
+        <div class="row">
+          <button class="btn small" type="button" id="ik-copy-hash">{s.copyHash}</button>
+          <button class="btn small ghost" type="button" id="ik-reveal">{s.revealBtn}</button>
+        </div>
+        <div class="ik-revealed" id="ik-revealed" hidden>
+          <label for="ik-list">{s.revealedLabel}</label>
+          <textarea id="ik-list" rows="4" readonly spellcheck="false"></textarea>
+          <button class="btn small" type="button" data-copy="#ik-list">{s.copyList}</button>
+          <p class="hint">{s.verifyBefore}<a href={hashTool}>{s.verifyLink}</a>{s.verifyAfter}</p>
+        </div>
+      </details>
+    </div>
+
+    <dialog class="ik-dialog" id="ik-dialog" aria-labelledby="ik-dialog-h">
+      <canvas class="ik-confetti" id="ik-confetti" aria-hidden="true"></canvas>
+      <div class="ik-card">
+        <p class="ik-card-h" id="ik-dialog-h"></p>
+        <div class="ik-card-list" id="ik-dialog-list"></div>
+        <p class="ik-card-last" id="ik-dialog-last" hidden></p>
+        <button class="btn primary" type="button" id="ik-dialog-close" autofocus>{s.resultClose}</button>
+      </div>
+    </dialog>
+  </div>
+
+  <section class="ik-history" aria-labelledby="ik-history-h">
+    <div class="row between">
+      <h3 class="ik-h" id="ik-history-h">{s.historyTitle}</h3>
+      <button class="btn small ghost" type="button" id="ik-copy-history">{s.copyHistory}</button>
+    </div>
+    <div class="ik-players" id="ik-players" hidden>
+      <h4>{s.playersTitle}</h4>
+      <ul id="ik-player-list"></ul>
+    </div>
+    <ol class="ik-history-list" id="ik-history" reversed></ol>
+    <p class="hint" id="ik-history-empty">{s.historyEmpty}</p>
+  </section>
+</div>
+
+<script>
+  import { $, $$, copyText, flashButton, loadPref, savePref } from '../../lib/client';
+  import { formatNumber } from '../../lib/format';
+  import { readI18n } from '../../i18n/client';
+  import { plural, t } from '../../i18n/format';
+  import { LOCALE_INFO } from '../../i18n/locales';
+  import { confetti } from '../birthday-candles/confetti';
+  import type { Strings } from './i18n';
+  import {
+    MAX_LABEL,
+    MAX_NAME,
+    MAX_TICKETS,
+    atLeastOne,
+    clampInt,
+    commitmentText,
+    createBoard,
+    cryptoInt,
+    drawRandom,
+    drawTicket,
+    expectedDraws,
+    guaranteedDraws,
+    normalizeSetup,
+    presetsFor,
+    randomSalt,
+    remainingByTier,
+    remainingTickets,
+    restoreBoard,
+    sha256Hex,
+    summarizePlayers,
+    tierColor,
+    tierLabel,
+    totalTickets,
+    undoDraw,
+    validateSetup,
+    type Board,
+    type Draw,
+    type PresetId,
+    type Setup,
+  } from './logic';
+
+  interface Prefs {
+    player: string;
+    effects: boolean;
+    sound: boolean;
+    calcN: number;
+  }
+
+  const root = $('[data-tool="ichiban-kuji"]');
+  const { locale, s } = readI18n<Strings['client']>(root);
+  const KEY = locale === 'zh-TW' ? 'ichiban-kuji' : `ichiban-kuji:${locale}`;
+  const PRESETS = presetsFor(locale);
+
+  const setupBox = $<HTMLDetailsElement>('#ik-setup', root);
+  const setupHint = $('#ik-setup-hint', root);
+  const titleIn = $<HTMLInputElement>('#ik-title-in', root);
+  const tierList = $('#ik-tier-list', root);
+  const lastOn = $<HTMLInputElement>('#ik-last-on', root);
+  const lastName = $<HTMLInputElement>('#ik-last-name', root);
+  const priceIn = $<HTMLInputElement>('#ik-price', root);
+  const setupError = $('#ik-setup-error', root);
+  const totalHint = $('#ik-total', root);
+  const applyBtn = $<HTMLButtonElement>('#ik-apply', root);
+  const stage = $('#ik-stage', root);
+  const titleEl = $('#ik-title', root);
+  const leftEl = $('#ik-left', root);
+  const bar = $('#ik-bar', root);
+  const latest = $('#ik-latest', root);
+  const playerIn = $<HTMLInputElement>('#ik-player', root);
+  const drawBtns = $$<HTMLButtonElement>('[data-draw]', root);
+  const undoBtn = $<HTMLButtonElement>('#ik-undo', root);
+  const reshuffleBtn = $<HTMLButtonElement>('#ik-reshuffle', root);
+  const effectsIn = $<HTMLInputElement>('#ik-effects', root);
+  const soundIn = $<HTMLInputElement>('#ik-sound', root);
+  const boardEl = $('#ik-board', root);
+  const statusBody = $('#ik-status', root);
+  const spendEl = $('#ik-spend', root);
+  const calcTier = $<HTMLSelectElement>('#ik-calc-tier', root);
+  const calcN = $<HTMLInputElement>('#ik-calc-n', root);
+  const calcOut = $('#ik-calc-out', root);
+  const hashEl = $('#ik-hash', root);
+  const revealBtn = $<HTMLButtonElement>('#ik-reveal', root);
+  const revealedBox = $('#ik-revealed', root);
+  const listArea = $<HTMLTextAreaElement>('#ik-list', root);
+  const dialog = $<HTMLDialogElement>('#ik-dialog', root);
+  const dialogH = $('#ik-dialog-h', root);
+  const dialogList = $('#ik-dialog-list', root);
+  const dialogLast = $('#ik-dialog-last', root);
+  const confettiCanvas = $<HTMLCanvasElement>('#ik-confetti', root);
+  const historyList = $('#ik-history', root);
+  const historyEmpty = $('#ik-history-empty', root);
+  const playersBox = $('#ik-players', root);
+  const playerList = $('#ik-player-list', root);
+  const fsBtn = $<HTMLButtonElement>('#ik-fs', root);
+
+  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+  const timeFmt = new Intl.DateTimeFormat(LOCALE_INFO[locale].intl, { hour: 'numeric', minute: '2-digit', hour12: s.hour12 });
+
+  let board: Board = loadBoard();
+  let busy = false;
+  let hashToken = 0;
+  let stopConfetti: (() => void) | null = null;
+  let audio: AudioContext | null = null;
+
+  // ---------- Persistence ----------
+
+  function loadBoard(): Board {
+    const saved = restoreBoard(loadPref<unknown>(`${KEY}:board`, null), locale);
+    return saved ?? createBoard(PRESETS[0].setup, cryptoInt, randomSalt());
+  }
+  const saveBoard = () => savePref(`${KEY}:board`, board);
+  const prefs: Prefs = { player: '', effects: true, sound: false, calcN: 10, ...loadPref<Partial<Prefs>>(`${KEY}:prefs`, {}) };
+  const savePrefs = () => savePref(`${KEY}:prefs`, prefs);
+
+  // ---------- Helpers ----------
+
+  const SEP = locale === 'en' ? ', ' : '、';
+  const COLON = locale === 'en' ? ': ' : '：';
+  const paren = (x: string) => (locale === 'en' ? ` (${x})` : `（${x}）`);
+  const money = (v: number) => t(s.money, { n: formatNumber(v, locale === 'en' ? 2 : 0, locale) });
+  const percent = (p: number) => `${formatNumber(p * 100, p > 0 && p < 0.001 ? 3 : 1, locale)}%`;
+  const tierOf = (i: number) => board.setup.tiers[i];
+  const tierText = (i: number) => (tierOf(i).name ? `${tierOf(i).label} ${tierOf(i).name}` : tierOf(i).label);
+  const lastPrizeText = () => board.setup.last.name || s.lastLabel;
+
+  function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string, text?: string): HTMLElementTagNameMap[K] {
+    const node = document.createElement(tag);
+    if (cls) node.className = cls;
+    if (text !== undefined) node.textContent = text;
+    return node;
+  }
+
+  function badge(i: number): HTMLSpanElement {
+    const b = el('span', 'ik-badge', tierOf(i).label);
+    const c = tierColor(i);
+    b.style.background = c.bg;
+    b.style.color = c.fg;
+    return b;
+  }
+
+  /** Two-tap confirmation for actions that throw away draws. Returns true on the second tap. */
+  const armed = new Map<HTMLButtonElement, number>();
+  function confirmTap(btn: HTMLButtonElement): boolean {
+    const timer = armed.get(btn);
+    if (timer !== undefined) {
+      disarm(btn);
+      return true;
+    }
+    btn.dataset.label = btn.textContent ?? '';
+    btn.textContent = s.confirm;
+    btn.classList.add('is-armed');
+    armed.set(btn, window.setTimeout(() => disarm(btn), 3500));
+    return false;
+  }
+  function disarm(btn: HTMLButtonElement): void {
+    window.clearTimeout(armed.get(btn));
+    armed.delete(btn);
+    if (btn.dataset.label !== undefined) btn.textContent = btn.dataset.label;
+    btn.classList.remove('is-armed');
+  }
+
+  // ---------- Setup editor ----------
+
+  function tierRow(label: string, name: string, count: number, i: number): HTMLDivElement {
+    const row = el('div', 'ik-tier-row');
+    const dot = el('span', 'ik-dot');
+    dot.style.background = tierColor(i).bg;
+    const l = el('input', 'ik-in-label');
+    l.type = 'text';
+    l.maxLength = MAX_LABEL;
+    l.value = label;
+    l.setAttribute('aria-label', s.labelAria);
+    const n = el('input', 'ik-in-name');
+    n.type = 'text';
+    n.maxLength = MAX_NAME;
+    n.value = name;
+    n.placeholder = s.prizePlaceholder;
+    const c = el('input', 'ik-in-count');
+    c.type = 'number';
+    c.min = '0';
+    c.max = String(MAX_TICKETS);
+    c.step = '1';
+    c.inputMode = 'numeric';
+    c.value = String(count);
+    const del = el('button', 'btn small ghost ik-del', '×');
+    del.type = 'button';
+    row.append(dot, l, n, c, del);
+    return row;
+  }
+
+  function labelRows(): void {
+    $$('.ik-tier-row', tierList).forEach((row, i) => {
+      const label = $<HTMLInputElement>('.ik-in-label', row).value.trim() || tierLabel(i, locale);
+      $('.ik-dot', row).style.background = tierColor(i).bg;
+      $('.ik-in-name', row).setAttribute('aria-label', t(s.prizeAria, { label }));
+      $('.ik-in-count', row).setAttribute('aria-label', t(s.countAria, { label }));
+      $('.ik-del', row).setAttribute('aria-label', t(s.removeTier, { label }));
+    });
+  }
+
+  function fillEditor(setup: Setup): void {
+    titleIn.value = setup.title;
+    tierList.replaceChildren(...setup.tiers.map((tier, i) => tierRow(tier.label, tier.name, tier.count, i)));
+    lastOn.checked = setup.last.enabled;
+    lastName.value = setup.last.name;
+    priceIn.value = setup.price ? String(setup.price) : '';
+    labelRows();
+    checkEditor();
+  }
+
+  function readEditor(): Setup {
+    return normalizeSetup(
+      {
+        title: titleIn.value,
+        tiers: $$('.ik-tier-row', tierList).map((row) => ({
+          label: $<HTMLInputElement>('.ik-in-label', row).value,
+          name: $<HTMLInputElement>('.ik-in-name', row).value,
+          count: clampInt($<HTMLInputElement>('.ik-in-count', row).value, 0, MAX_TICKETS, 0),
+        })),
+        last: { enabled: lastOn.checked, name: lastName.value },
+        price: Number(priceIn.value) || 0,
+      },
+      locale,
+    );
+  }
+
+  function checkEditor(): Setup | null {
+    const setup = readEditor();
+    const total = totalTickets(setup);
+    const err = validateSetup(setup);
+    totalHint.textContent = plural(locale, total, s.total);
+    setupError.hidden = !err;
+    setupError.textContent = err === 'empty' ? s.errorEmpty : err === 'tooMany' ? t(s.errorTooMany, { max: MAX_TICKETS, n: total }) : '';
+    applyBtn.disabled = Boolean(err);
+    $<HTMLButtonElement>('#ik-add', root).disabled = setup.tiers.length >= 26;
+    return err ? null : setup;
+  }
+
+  function startBoard(setup: Setup): void {
+    stopEffects();
+    board = createBoard(setup, cryptoInt, randomSalt());
+    saveBoard();
+    latest.textContent = '';
+    buildBoard();
+    renderAll();
+  }
+
+  function applySetup(btn: HTMLButtonElement): void {
+    const setup = checkEditor();
+    if (!setup || busy) return;
+    if (board.draws.length > 0 && !confirmTap(btn)) return;
+    startBoard(setup);
+    savePref(`${KEY}:draft`, null);
+    setupBox.open = false;
+    stage.scrollIntoView({ block: 'start', behavior: reducedMotion.matches ? 'auto' : 'smooth' });
+  }
+
+  // ---------- Board ----------
+
+  function buildBoard(): void {
+    const frag = document.createDocumentFragment();
+    for (let n = 1; n <= board.tickets.length; n++) {
+      const b = el('button', 'ik-t');
+      b.type = 'button';
+      b.dataset.n = String(n);
+      b.append(el('span', 'ik-t-n', String(n)), el('span', 'ik-t-l'));
+      frag.append(b);
+    }
+    boardEl.replaceChildren(frag);
+    boardEl.dataset.size = board.tickets.length > 200 ? 'xs' : board.tickets.length > 80 ? 's' : 'm';
+    for (let n = 1; n <= board.tickets.length; n++) paintTicket(n);
+  }
+
+  function paintTicket(n: number): void {
+    const b = boardEl.children[n - 1] as HTMLButtonElement | undefined;
+    if (!b) return;
+    const draw = board.draws.find((d) => d.ticket === n);
+    const tier = board.tickets[n - 1];
+    const label = $('.ik-t-l', b);
+    const c = tierColor(tier);
+    b.classList.toggle('is-open', Boolean(draw));
+    b.classList.toggle('is-peek', !draw && board.revealed);
+    b.classList.toggle('is-last', Boolean(draw?.last));
+    b.disabled = Boolean(draw);
+    if (draw || board.revealed) {
+      label.textContent = tierOf(tier).label;
+      b.style.setProperty('--c', c.bg);
+      b.style.setProperty('--f', c.fg);
+      b.setAttribute('aria-label', t(draw ? s.ticketOpen : s.ticketPeek, { n, label: tierText(tier) }));
+    } else {
+      label.textContent = '';
+      b.style.removeProperty('--c');
+      b.style.removeProperty('--f');
+      b.setAttribute('aria-label', t(s.ticketClosed, { n }));
+    }
+  }
+
+  function renderHead(): void {
+    const total = board.tickets.length;
+    const left = total - board.draws.length;
+    titleEl.textContent = board.setup.title || s.defaultTitle;
+    leftEl.textContent = left === 0 ? s.done : t(s.left, { left, total });
+    leftEl.classList.toggle('is-done', left === 0);
+    bar.style.width = `${(board.draws.length / total) * 100}%`;
+    for (const b of drawBtns) b.disabled = left === 0;
+    undoBtn.disabled = board.draws.length === 0;
+    setupHint.textContent = [plural(locale, total, s.total), board.setup.price > 0 ? t(s.perDraw, { money: money(board.setup.price) }) : '']
+      .filter(Boolean)
+      .join(' · ');
+  }
+
+  function renderStatus(): void {
+    const left = remainingByTier(board);
+    const r = board.tickets.length - board.draws.length;
+    const rows = board.setup.tiers.map((tier, i) => {
+      if (tier.count === 0) return null;
+      const tr = el('tr');
+      tr.classList.toggle('is-gone', left[i] === 0);
+      const name = el('td');
+      name.append(badge(i));
+      if (tier.name) name.append(el('span', 'ik-prize ik-prize-line', tier.name));
+      tr.append(name, el('td', 'num', `${left[i]} / ${tier.count}`), el('td', 'num', r > 0 ? percent(left[i] / r) : '—'));
+      return tr;
+    });
+    if (board.setup.last.enabled) {
+      const winner = board.draws.find((d) => d.last);
+      const tr = el('tr', 'ik-last-row');
+      const name = el('td');
+      name.append(el('span', 'ik-badge ik-badge-last', s.lastLabel));
+      if (board.setup.last.name) name.append(el('span', 'ik-prize ik-prize-line', board.setup.last.name));
+      tr.append(name, el('td', 'num', winner ? `0 / 1` : `1 / 1`), el('td', 'num', r === 1 ? '100%' : '—'));
+      tr.classList.toggle('is-gone', Boolean(winner));
+      rows.push(tr);
+    }
+    statusBody.replaceChildren(...rows.filter((x): x is HTMLTableRowElement => x !== null));
+
+    const price = board.setup.price;
+    spendEl.hidden = price <= 0;
+    if (price > 0) {
+      const n = board.draws.length;
+      spendEl.textContent = [
+        plural(locale, n, s.spend, { money: money(n * price) }),
+        r > 0 ? plural(locale, r, s.spendLeft, { money: money(r * price) }) : '',
+      ]
+        .filter(Boolean)
+        .join(' · ');
+    }
+  }
+
+  function renderCalcOptions(): void {
+    const keep = calcTier.value;
+    const opts = board.setup.tiers.map((tier, i) => {
+      const o = el('option', undefined, tierText(i));
+      o.value = String(i);
+      o.disabled = tier.count === 0;
+      return o;
+    });
+    calcTier.replaceChildren(...opts);
+    if (keep && Number(keep) < opts.length) calcTier.value = keep;
+  }
+
+  function renderCalc(): void {
+    const i = Number(calcTier.value) || 0;
+    const r = board.tickets.length - board.draws.length;
+    const k = remainingByTier(board)[i] ?? 0;
+    const label = tierOf(i)?.label ?? '';
+    calcN.max = String(Math.max(1, r));
+    const n = clampInt(calcN.value, 1, Math.max(1, r), 1);
+    prefs.calcN = n;
+    const rows: [string, string][] = [];
+    if (k === 0) {
+      calcOut.replaceChildren(el('p', 'hint', t(s.calcGone, { label })));
+      return;
+    }
+    rows.push([t(s.calcChance, { label }), percent(atLeastOne(r, k, n))]);
+    rows.push([t(s.calcExpected, { n: formatNumber(expectedDraws(r, k), 1, locale) }), '']);
+    const g = guaranteedDraws(r, k);
+    const price = board.setup.price;
+    rows.push([t(s.calcGuarantee, { n: g }), price > 0 ? money(g * price) : '']);
+    calcOut.replaceChildren(
+      ...rows.flatMap(([dt, dd]) => {
+        const d = el('div', 'ik-calc-row');
+        d.append(el('dt', undefined, dt), el('dd', undefined, dd));
+        return [d];
+      }),
+    );
+  }
+
+  async function renderFair(): Promise<void> {
+    const token = ++hashToken;
+    const text = commitmentText(board);
+    hashEl.textContent = '…';
+    try {
+      const hex = await sha256Hex(text);
+      if (token === hashToken) hashEl.textContent = hex;
+    } catch {
+      if (token === hashToken) hashEl.textContent = '—';
+    }
+    revealedBox.hidden = !board.revealed;
+    listArea.value = board.revealed ? text : '';
+    revealBtn.hidden = board.revealed;
+  }
+
+  function historyLine(d: Draw): string {
+    const who = d.player ? ` — ${d.player}` : '';
+    const last = d.last ? ` ＋ ${s.lastLabel} ${board.setup.last.name}`.trimEnd() : '';
+    return `${t(s.ticketNo, { n: d.ticket })} ${tierText(d.tier)}${last}${who}`;
+  }
+
+  function renderHistory(): void {
+    const items = board.draws
+      .map((d, idx) => {
+        const li = el('li');
+        li.value = idx + 1;
+        if (d.last) li.classList.add('is-last');
+        li.append(badge(d.tier));
+        if (tierOf(d.tier).name) li.append(' ', el('span', 'ik-prize', tierOf(d.tier).name));
+        if (d.last) li.append(' ', el('span', 'ik-badge ik-badge-last', `${s.lastLabel} ${board.setup.last.name}`.trim()));
+        const meta = [t(s.ticketNo, { n: d.ticket }), d.player, d.at ? timeFmt.format(d.at) : ''].filter(Boolean).join(' · ');
+        li.append(el('span', 'ik-meta', meta));
+        return li;
+      })
+      .reverse();
+    historyList.replaceChildren(...items);
+    historyEmpty.hidden = items.length > 0;
+
+    const named = board.draws.some((d) => d.player);
+    playersBox.hidden = !named;
+    if (named) playerList.replaceChildren(...summarizePlayers(board.draws).map((p) => el('li', undefined, playerSummary(p))));
+  }
+
+  function playerSummary(p: ReturnType<typeof summarizePlayers>[number]): string {
+    const price = board.setup.price;
+    const head = plural(locale, p.draws, s.playerLine, { name: p.player || s.anon });
+    const spend = price > 0 ? paren(money(p.draws * price)) : '';
+    const tiers = [...p.tiers.entries()]
+      .sort((a, b) => a[0] - b[0])
+      .map(([i, c]) => `${tierOf(i).label}×${c}`);
+    if (p.last) tiers.push(s.lastLabel);
+    return `${head}${spend} ${tiers.join(SEP)}`;
+  }
+
+  function historyText(): string {
+    const lines = [t(s.copyHeader, { title: board.setup.title || s.defaultTitle })];
+    board.draws.forEach((d, i) => lines.push(`${i + 1}. ${historyLine(d)}`));
+    if (board.draws.some((d) => d.player)) {
+      lines.push('');
+      for (const p of summarizePlayers(board.draws)) lines.push(playerSummary(p));
+    }
+    return lines.join('\n');
+  }
+
+  function renderAll(): void {
+    renderHead();
+    renderStatus();
+    renderCalcOptions();
+    renderCalc();
+    renderHistory();
+    void renderFair();
+  }
+
+  // ---------- Drawing ----------
+
+  function afterDraws(draws: Draw[]): void {
+    if (draws.length === 0) return;
+    saveBoard();
+    for (const d of draws) paintTicket(d.ticket);
+    const lastDraw = draws[draws.length - 1];
+    latest.textContent =
+      draws.length === 1
+        ? t(s.announce, { n: lastDraw.ticket, label: tierText(lastDraw.tier) }) + (lastDraw.last ? ` · ${t(s.lastWin, { name: lastPrizeText() })}` : '')
+        : `${t(s.resultMany, { n: draws.length })}${COLON}${draws
+            .slice()
+            .sort((a, b) => a.tier - b.tier)
+            .map((d) => tierOf(d.tier).label)
+            .join(SEP)}`;
+    renderHead();
+    renderStatus();
+    renderCalc();
+    renderHistory();
+  }
+
+  async function animate(draws: Draw[]): Promise<void> {
+    if (reducedMotion.matches || !prefs.effects) return;
+    const step = Math.min(110, 900 / draws.length);
+    for (const [i, d] of draws.entries()) {
+      const b = boardEl.children[d.ticket - 1] as HTMLElement | undefined;
+      window.setTimeout(() => {
+        b?.classList.add('is-opening');
+        if (prefs.sound) tearSound();
+      }, i * step);
+    }
+    await new Promise((r) => window.setTimeout(r, draws.length * step + 380));
+    for (const d of draws) (boardEl.children[d.ticket - 1] as HTMLElement | undefined)?.classList.remove('is-opening');
+  }
+
+  async function run(draws: Draw[]): Promise<void> {
+    if (draws.length === 0) return;
+    busy = true;
+    try {
+      if (reducedMotion.matches || !prefs.effects) {
+        if (prefs.sound) tearSound();
+        afterDraws(draws);
+      } else {
+        // Paint after the tear animation so the tier appears as the ticket opens.
+        const animation = animate(draws);
+        window.setTimeout(() => afterDraws(draws), Math.min(110, 900 / draws.length) * (draws.length - 1) + 200);
+        await animation;
+      }
+      if (prefs.effects) showResult(draws);
+      else if (prefs.sound && draws.some((d) => d.tier === 0 || d.last)) winSound();
+    } finally {
+      busy = false;
+    }
+  }
+
+  function drawPick(ticket: number): void {
+    if (busy) return;
+    const d = drawTicket(board, ticket, prefs.player, Date.now());
+    if (d) void run([d]);
+  }
+
+  function drawMany(n: number): void {
+    if (busy) return;
+    void run(drawRandom(board, n, prefs.player, cryptoInt, Date.now));
+  }
+
+  // ---------- Result dialog ----------
+
+  function resultCard(d: Draw, big: boolean): HTMLDivElement {
+    const card = el('div', big ? 'ik-res ik-res-big' : 'ik-res');
+    const c = tierColor(d.tier);
+    card.style.setProperty('--c', c.bg);
+    card.style.setProperty('--f', c.fg);
+    card.append(el('span', 'ik-res-tier', tierOf(d.tier).label));
+    if (tierOf(d.tier).name) card.append(el('span', 'ik-res-name', tierOf(d.tier).name));
+    card.append(el('span', 'ik-res-no', t(s.ticketNo, { n: d.ticket })));
+    return card;
+  }
+
+  function showResult(draws: Draw[]): void {
+    const single = draws.length === 1;
+    dialogH.textContent = single ? s.resultOne : t(s.resultMany, { n: draws.length });
+    const sorted = single ? draws : draws.slice().sort((a, b) => a.tier - b.tier || a.ticket - b.ticket);
+    dialogList.replaceChildren(...sorted.map((d) => resultCard(d, single)));
+    dialogList.classList.toggle('is-many', !single);
+    const last = draws.find((d) => d.last);
+    dialogLast.hidden = !last;
+    dialogLast.textContent = last ? t(s.lastWin, { name: lastPrizeText() }) : '';
+    if (typeof dialog.showModal === 'function') dialog.showModal();
+    else dialog.setAttribute('open', '');
+    const big = draws.some((d) => d.tier === 0 || d.last);
+    if (big) {
+      if (prefs.sound) winSound();
+      if (!reducedMotion.matches) {
+        stopConfetti?.();
+        stopConfetti = confetti(confettiCanvas, ['#f5b821', '#f0522e', '#2f7ae5', '#12936a', '#ffffff']);
+      }
+    }
+  }
+
+  function stopEffects(): void {
+    stopConfetti?.();
+    stopConfetti = null;
+  }
+
+  function closeResult(): void {
+    stopEffects();
+    if (dialog.open) dialog.close();
+  }
+
+  // ---------- Sound ----------
+
+  function ctx(): AudioContext | null {
+    try {
+      audio ??= new AudioContext();
+      if (audio.state === 'suspended') void audio.resume();
+      return audio;
+    } catch {
+      return null;
+    }
+  }
+
+  function tearSound(): void {
+    const a = ctx();
+    if (!a) return;
+    const len = Math.floor(a.sampleRate * 0.14);
+    const buf = a.createBuffer(1, len, a.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / len);
+    const src = a.createBufferSource();
+    src.buffer = buf;
+    const filter = a.createBiquadFilter();
+    filter.type = 'bandpass';
+    filter.frequency.value = 2600;
+    filter.Q.value = 0.8;
+    const gain = a.createGain();
+    gain.gain.value = 0.35;
+    src.connect(filter).connect(gain).connect(a.destination);
+    src.start();
+  }
+
+  function winSound(): void {
+    const a = ctx();
+    if (!a) return;
+    const now = a.currentTime;
+    [523.25, 659.25, 783.99, 1046.5].forEach((f, i) => {
+      const o = a.createOscillator();
+      const g = a.createGain();
+      o.type = 'triangle';
+      o.frequency.value = f;
+      const t0 = now + i * 0.11;
+      g.gain.setValueAtTime(0.0001, t0);
+      g.gain.exponentialRampToValueAtTime(0.25, t0 + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + (i === 3 ? 0.9 : 0.3));
+      o.connect(g).connect(a.destination);
+      o.start(t0);
+      o.stop(t0 + 1);
+    });
+  }
+
+  // ---------- Fullscreen ----------
+
+  function syncFs(): void {
+    const on = document.fullscreenElement === stage;
+    fsBtn.textContent = on ? s.exitFullscreen : s.fullscreen;
+  }
+
+  // ---------- Events ----------
+
+  boardEl.addEventListener('click', (e) => {
+    const b = (e.target as Element).closest<HTMLButtonElement>('.ik-t');
+    if (b && !b.disabled) drawPick(Number(b.dataset.n));
+  });
+
+  for (const btn of drawBtns) {
+    btn.addEventListener('click', () => {
+      if (busy) return;
+      const v = btn.dataset.draw;
+      if (v === 'all') {
+        if (!confirmTap(btn)) return;
+        drawMany(remainingTickets(board).length);
+      } else drawMany(Number(v));
+    });
+  }
+
+  undoBtn.addEventListener('click', () => {
+    if (busy) return;
+    const d = undoDraw(board);
+    if (!d) return;
+    saveBoard();
+    paintTicket(d.ticket);
+    latest.textContent = '';
+    renderHead();
+    renderStatus();
+    renderCalc();
+    renderHistory();
+  });
+
+  reshuffleBtn.addEventListener('click', () => {
+    if (busy) return;
+    if (board.draws.length > 0 && !confirmTap(reshuffleBtn)) return;
+    startBoard(board.setup);
+  });
+
+  revealBtn.addEventListener('click', () => {
+    if (remainingTickets(board).length > 0 && !confirmTap(revealBtn)) return;
+    board.revealed = true;
+    saveBoard();
+    for (let n = 1; n <= board.tickets.length; n++) paintTicket(n);
+    void renderFair();
+  });
+
+  $('#ik-copy-hash', root).addEventListener('click', async (e) => {
+    const hex = hashEl.textContent ?? '';
+    if (/^[0-9a-f]{64}$/.test(hex) && (await copyText(hex))) flashButton(e.currentTarget as HTMLElement);
+  });
+
+  $('#ik-copy-history', root).addEventListener('click', async (e) => {
+    if (board.draws.length && (await copyText(historyText()))) flashButton(e.currentTarget as HTMLElement);
+  });
+
+  $('#ik-dialog-close', root).addEventListener('click', closeResult);
+  dialog.addEventListener('click', (e) => {
+    if (e.target === dialog || e.target === confettiCanvas) closeResult();
+  });
+  dialog.addEventListener('close', stopEffects);
+
+  // Editor
+  tierList.addEventListener('click', (e) => {
+    const del = (e.target as Element).closest('.ik-del');
+    if (!del) return;
+    del.closest('.ik-tier-row')?.remove();
+    labelRows();
+    onEditorInput();
+  });
+  $('#ik-add', root).addEventListener('click', () => {
+    const i = tierList.children.length;
+    if (i >= 26) return;
+    tierList.append(tierRow(tierLabel(i, locale), '', 1, i));
+    labelRows();
+    onEditorInput();
+    $<HTMLInputElement>('.ik-tier-row:last-child .ik-in-name', tierList).focus();
+  });
+  function onEditorInput(): void {
+    const setup = checkEditor();
+    savePref(`${KEY}:draft`, readEditor());
+    if (setup) disarm(applyBtn);
+  }
+  $('.ik-setup-body', root).addEventListener('input', (e) => {
+    if ((e.target as Element).matches('.ik-in-label')) labelRows();
+    onEditorInput();
+  });
+  applyBtn.addEventListener('click', () => applySetup(applyBtn));
+  for (const btn of $$<HTMLButtonElement>('[data-preset]', root)) {
+    btn.addEventListener('click', () => {
+      const preset = PRESETS.find((p) => p.id === (btn.dataset.preset as PresetId));
+      if (!preset || busy) return;
+      if (board.draws.length > 0 && !confirmTap(btn)) return;
+      fillEditor(preset.setup);
+      startBoard(preset.setup);
+      savePref(`${KEY}:draft`, null);
+    });
+  }
+
+  // Options
+  playerIn.addEventListener('input', () => {
+    prefs.player = playerIn.value.trim();
+    savePrefs();
+  });
+  effectsIn.addEventListener('change', () => {
+    prefs.effects = effectsIn.checked;
+    savePrefs();
+  });
+  soundIn.addEventListener('change', () => {
+    prefs.sound = soundIn.checked;
+    savePrefs();
+    if (prefs.sound) ctx();
+  });
+  calcTier.addEventListener('change', renderCalc);
+  calcN.addEventListener('input', () => {
+    renderCalc();
+    savePrefs();
+  });
+
+  if (document.fullscreenEnabled && typeof stage.requestFullscreen === 'function') {
+    fsBtn.hidden = false;
+    fsBtn.addEventListener('click', () => {
+      if (document.fullscreenElement === stage) void document.exitFullscreen();
+      else void stage.requestFullscreen().catch(() => {});
+    });
+    document.addEventListener('fullscreenchange', syncFs);
+  }
+
+  // ---------- Init ----------
+
+  playerIn.value = prefs.player;
+  effectsIn.checked = prefs.effects;
+  soundIn.checked = prefs.sound;
+  calcN.value = String(prefs.calcN);
+  const draft = loadPref<Partial<Setup> | null>(`${KEY}:draft`, null);
+  fillEditor(draft ? normalizeSetup(draft, locale) : board.setup);
+  buildBoard();
+  renderAll();
+  // Unapplied edits from a previous visit: keep the editor open so they are not forgotten.
+  if (draft) setupBox.open = true;
+</script>
+
+<style>
+  /* ---------- Setup ---------- */
+  .ik-setup {
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface-2);
+    margin-bottom: 18px;
+  }
+  .ik-setup > summary {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 4px 12px;
+    padding: 12px 16px;
+    cursor: pointer;
+    list-style: none;
+  }
+  .ik-setup > summary::-webkit-details-marker {
+    display: none;
+  }
+  .ik-setup > summary::before {
+    content: '';
+    align-self: center;
+    width: 8px;
+    height: 8px;
+    border-right: 2px solid var(--text-2);
+    border-bottom: 2px solid var(--text-2);
+    transform: rotate(-45deg);
+    transition: transform 0.15s;
+  }
+  .ik-setup[open] > summary::before {
+    transform: rotate(45deg);
+  }
+  .ik-setup-title {
+    font-weight: 700;
+  }
+  .ik-setup-hint {
+    font-size: 13px;
+    color: var(--muted);
+    overflow-wrap: anywhere;
+  }
+  .ik-setup-body {
+    display: grid;
+    gap: 16px;
+    padding: 4px 16px 16px;
+  }
+  .ik-presets {
+    gap: 6px;
+  }
+  .ik-tiers {
+    display: grid;
+    gap: 6px;
+  }
+  #ik-tier-list {
+    display: grid;
+    gap: 6px;
+  }
+  .ik-tier-row {
+    display: grid;
+    grid-template-columns: 10px minmax(56px, 84px) minmax(0, 1fr) 72px 36px;
+    gap: 6px;
+    align-items: center;
+  }
+  .ik-tier-head {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--muted);
+  }
+  .ik-tier-row input {
+    min-width: 0;
+  }
+  .ik-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+  }
+  .ik-del {
+    padding-inline: 0;
+    font-size: 18px;
+    line-height: 1;
+  }
+  .ik-add {
+    justify-self: start;
+  }
+  .ik-last {
+    display: grid;
+    gap: 8px;
+  }
+  .ik-price-in {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    max-width: 240px;
+  }
+  .ik-price-in span {
+    color: var(--text-2);
+  }
+
+  /* ---------- Main ---------- */
+  .ik-main {
+    display: grid;
+    gap: 20px;
+    align-items: start;
+  }
+  @media (min-width: 900px) {
+    .ik-main {
+      grid-template-columns: minmax(0, 1fr) minmax(260px, 300px);
+    }
+  }
+  .ik-main:fullscreen {
+    overflow-y: auto;
+    padding: 24px;
+    background: var(--bg);
+    align-content: start;
+  }
+  .ik-board-col {
+    display: grid;
+    gap: 12px;
+    min-width: 0;
+  }
+  .ik-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 4px 12px;
+  }
+  .ik-title {
+    margin: 0;
+    font-size: clamp(18px, 4vw, 24px);
+    font-weight: 800;
+    overflow-wrap: anywhere;
+  }
+  .ik-left {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-2);
+    font-variant-numeric: tabular-nums;
+  }
+  .ik-left.is-done {
+    color: var(--success);
+  }
+  .ik-fs {
+    margin-left: auto;
+  }
+  .ik-progress {
+    height: 6px;
+    border-radius: 999px;
+    background: var(--surface-2);
+    overflow: hidden;
+  }
+  .ik-progress span {
+    display: block;
+    height: 100%;
+    width: 0;
+    background: var(--accent);
+    transition: width 0.3s;
+  }
+  .ik-latest {
+    margin: 0;
+    height: 1.6em;
+    line-height: 1.6;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-2);
+    overflow-wrap: anywhere;
+  }
+  .ik-controls {
+    display: grid;
+    gap: 10px;
+  }
+  .ik-player {
+    max-width: 280px;
+  }
+  .ik-draws {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 8px;
+  }
+  @media (max-width: 480px) {
+    .ik-draws {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+  .ik-sub {
+    gap: 6px 14px;
+  }
+  .ik-controls :global(.is-armed),
+  .ik-setup :global(.is-armed),
+  .ik-side :global(.is-armed) {
+    border-color: var(--danger);
+    color: var(--danger);
+    background: color-mix(in oklab, var(--danger) 8%, var(--surface));
+  }
+  .ik-board-hint {
+    margin: 0;
+  }
+
+  /* ---------- Tickets ---------- */
+  .ik-board {
+    --cell: 52px;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(var(--cell), 1fr));
+    gap: 6px;
+    align-content: start;
+  }
+  .ik-board:empty {
+    min-height: 200px;
+  }
+  .ik-board[data-size='s'] {
+    --cell: 46px;
+  }
+  .ik-board[data-size='xs'] {
+    --cell: 40px;
+    gap: 4px;
+  }
+  .ik-board :global(.ik-t) {
+    position: relative;
+    display: grid;
+    place-items: center;
+    aspect-ratio: 1 / 1.12;
+    padding: 0;
+    border: 1px solid #e8d6b0;
+    border-radius: 6px;
+    font: inherit;
+    color: #6b4a12;
+    background:
+      linear-gradient(135deg, transparent 0 82%, rgb(0 0 0 / 0.08) 82% 84%, #f6e2b5 84%),
+      repeating-linear-gradient(0deg, transparent 0 7px, rgb(180 140 60 / 0.07) 7px 8px),
+      #fff6e0;
+    cursor: pointer;
+    box-shadow: 0 1px 2px rgb(80 50 0 / 0.12);
+    transition: transform 0.12s, box-shadow 0.12s;
+  }
+  .ik-board :global(.ik-t:hover:not(:disabled)) {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 10px -4px rgb(80 50 0 / 0.35);
+  }
+  .ik-board :global(.ik-t:focus-visible) {
+    outline: none;
+    box-shadow: var(--focus);
+  }
+  .ik-board :global(.ik-t-n) {
+    font-size: 15px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+  .ik-board[data-size='xs'] :global(.ik-t-n) {
+    font-size: 12px;
+  }
+  .ik-board :global(.ik-t-l) {
+    display: none;
+  }
+  .ik-board :global(.ik-t.is-open),
+  .ik-board :global(.ik-t.is-peek) {
+    align-content: center;
+    gap: 0;
+    cursor: default;
+  }
+  .ik-board :global(.ik-t.is-open) {
+    border-color: transparent;
+    color: var(--f);
+    background: var(--c);
+    box-shadow: inset 0 0 0 2px rgb(255 255 255 / 0.25);
+  }
+  .ik-board :global(.ik-t.is-open) :global(.ik-t-n),
+  .ik-board :global(.ik-t.is-peek) :global(.ik-t-n) {
+    font-size: 10px;
+    font-weight: 600;
+    opacity: 0.8;
+  }
+  .ik-board :global(.ik-t.is-open) :global(.ik-t-l),
+  .ik-board :global(.ik-t.is-peek) :global(.ik-t-l) {
+    display: block;
+    max-width: 100%;
+    padding-inline: 2px;
+    font-size: 13px;
+    font-weight: 800;
+    line-height: 1.1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .ik-board[data-size='xs'] :global(.ik-t.is-open) :global(.ik-t-l),
+  .ik-board[data-size='xs'] :global(.ik-t.is-peek) :global(.ik-t-l) {
+    font-size: 11px;
+  }
+  .ik-board :global(.ik-t.is-open:disabled) {
+    opacity: 1;
+  }
+  .ik-board :global(.ik-t.is-peek) {
+    border: 2px dashed var(--c);
+    background: color-mix(in oklab, var(--c) 14%, var(--surface));
+    color: var(--text);
+  }
+  .ik-board :global(.ik-t.is-last) {
+    outline: 3px solid var(--ink);
+    outline-offset: 1px;
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .ik-board :global(.ik-t.is-opening) {
+      animation: ik-tear 0.38s ease-out;
+    }
+  }
+  @keyframes ik-tear {
+    0% {
+      transform: scale(1) rotate(0);
+    }
+    35% {
+      transform: scale(1.18, 0.82) rotate(-4deg);
+    }
+    65% {
+      transform: scale(0.92, 1.12) rotate(3deg);
+    }
+    100% {
+      transform: scale(1) rotate(0);
+    }
+  }
+
+  /* ---------- Side ---------- */
+  .ik-side {
+    display: grid;
+    gap: 16px;
+    min-width: 0;
+  }
+  .ik-panel {
+    display: grid;
+    gap: 8px;
+    min-width: 0;
+  }
+  .ik-h {
+    margin: 0;
+    font-size: 16px;
+  }
+  .ik-status td {
+    vertical-align: middle;
+  }
+  .ik-status td:first-child {
+    white-space: normal;
+  }
+  .ik-status :global(.ik-prize-line) {
+    display: block;
+    margin-top: 2px;
+    line-height: 1.35;
+  }
+  .ik-status :global(tr.is-gone) {
+    color: var(--muted);
+  }
+  .ik-status :global(tr.is-gone .ik-badge) {
+    opacity: 0.45;
+  }
+  .ik-status .num {
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  :global([data-tool='ichiban-kuji'] .ik-prize) {
+    font-size: 13px;
+    color: var(--text-2);
+    overflow-wrap: anywhere;
+  }
+  :global([data-tool='ichiban-kuji'] .ik-badge) {
+    display: inline-block;
+    padding: 1px 7px;
+    border-radius: 6px;
+    font-size: 12.5px;
+    font-weight: 800;
+    white-space: nowrap;
+  }
+  :global([data-tool='ichiban-kuji'] .ik-badge-last) {
+    color: #ffe9a8;
+    background: var(--ink);
+  }
+  .ik-spend {
+    margin: 0;
+  }
+  .ik-fold {
+    padding: 12px 14px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+  }
+  .ik-fold > summary {
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 700;
+  }
+  .ik-fold .hint {
+    margin: 0;
+  }
+  .ik-calc {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 90px;
+    gap: 8px;
+  }
+  .ik-calc-out {
+    display: grid;
+    gap: 6px;
+    margin: 0;
+  }
+  .ik-calc-out :global(.ik-calc-row) {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    font-size: 13.5px;
+    line-height: 1.5;
+  }
+  .ik-calc-out :global(dt) {
+    color: var(--text-2);
+  }
+  .ik-calc-out :global(dd) {
+    margin: 0;
+    font-weight: 700;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+  }
+  .ik-calc-out :global(.ik-calc-row:first-child dd) {
+    font-size: 18px;
+    color: var(--accent);
+  }
+  .ik-hash {
+    display: block;
+    padding: 8px 10px;
+    border-radius: var(--radius-sm);
+    background: var(--surface-2);
+    font-family: var(--mono);
+    font-size: 12px;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+    user-select: all;
+  }
+  .ik-revealed {
+    display: grid;
+    gap: 6px;
+  }
+  .ik-revealed label {
+    font-size: 13px;
+    font-weight: 600;
+  }
+  .ik-revealed textarea {
+    font-family: var(--mono);
+    font-size: 12px;
+  }
+  .ik-revealed[hidden] {
+    display: none;
+  }
+
+  /* ---------- Result dialog ---------- */
+  .ik-dialog {
+    width: 100%;
+    height: 100%;
+    max-width: none;
+    max-height: none;
+    margin: 0;
+    padding: 16px;
+    border: 0;
+    background: transparent;
+    place-items: center;
+  }
+  .ik-dialog[open] {
+    display: grid;
+  }
+  .ik-dialog::backdrop {
+    background: rgb(15 17 24 / 0.55);
+  }
+  .ik-confetti {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+  }
+  .ik-card {
+    position: relative;
+    display: grid;
+    justify-items: center;
+    gap: 14px;
+    width: min(100%, 460px);
+    max-height: calc(100dvh - 32px);
+    overflow-y: auto;
+    padding: 22px 20px 20px;
+    border-radius: 18px;
+    background: var(--surface);
+    box-shadow: var(--shadow-lg);
+    text-align: center;
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .ik-dialog[open] .ik-card {
+      animation: ik-pop 0.4s cubic-bezier(0.2, 1.4, 0.4, 1);
+    }
+  }
+  @keyframes ik-pop {
+    from {
+      transform: scale(0.85);
+      opacity: 0;
+    }
+    to {
+      transform: scale(1);
+      opacity: 1;
+    }
+  }
+  .ik-card-h {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text-2);
+  }
+  .ik-card-list {
+    display: grid;
+    gap: 8px;
+    width: 100%;
+  }
+  .ik-card-list.is-many {
+    grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  }
+  .ik-card-list :global(.ik-res) {
+    display: grid;
+    justify-items: center;
+    gap: 2px;
+    padding: 10px 6px;
+    border-radius: 12px;
+    color: var(--f);
+    background: var(--c);
+  }
+  .ik-card-list :global(.ik-res-tier) {
+    font-size: 20px;
+    font-weight: 800;
+    line-height: 1.2;
+    overflow-wrap: anywhere;
+  }
+  .ik-card-list :global(.ik-res-name) {
+    font-size: 12.5px;
+    line-height: 1.35;
+    overflow-wrap: anywhere;
+  }
+  .ik-card-list :global(.ik-res-no) {
+    font-size: 11.5px;
+    opacity: 0.8;
+  }
+  .ik-card-list :global(.ik-res-big) {
+    padding: 26px 16px;
+    border-radius: 16px;
+  }
+  .ik-card-list :global(.ik-res-big .ik-res-tier) {
+    font-size: clamp(40px, 12vw, 64px);
+  }
+  .ik-card-list :global(.ik-res-big .ik-res-name) {
+    font-size: 18px;
+    font-weight: 700;
+  }
+  .ik-card-list :global(.ik-res-big .ik-res-no) {
+    font-size: 14px;
+  }
+  .ik-card-last {
+    margin: 0;
+    padding: 8px 14px;
+    border-radius: 10px;
+    font-weight: 800;
+    color: #ffe9a8;
+    background: var(--ink);
+  }
+
+  /* ---------- History ---------- */
+  .ik-history {
+    display: grid;
+    gap: 10px;
+    margin-top: 20px;
+    padding-top: 14px;
+    border-top: 1px solid var(--border);
+  }
+  .ik-players h4 {
+    margin: 0 0 4px;
+    font-size: 14px;
+    color: var(--text-2);
+  }
+  .ik-players ul {
+    margin: 0;
+    padding-left: 1.2em;
+    display: grid;
+    gap: 2px;
+    font-size: 14px;
+  }
+  .ik-history-list {
+    margin: 0;
+    padding-left: 2.6em;
+    max-height: 320px;
+    overflow-y: auto;
+    display: grid;
+    gap: 2px;
+    font-variant-numeric: tabular-nums;
+  }
+  .ik-history-list :global(li) {
+    padding: 5px 0;
+    border-bottom: 1px dashed var(--border);
+    overflow-wrap: anywhere;
+  }
+  .ik-history-list :global(.ik-meta) {
+    margin-left: 8px;
+    font-size: 13px;
+    color: var(--muted);
+  }
+</style>
