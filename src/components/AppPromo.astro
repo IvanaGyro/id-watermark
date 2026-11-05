@@ -1,7 +1,7 @@
 ---
 // A house promotion for one of the site owner's own apps. A static card with a plain store link:
 // no AdSense, no tracking script, no popup. Space is fixed so it never shifts the layout.
-import { fishingFestival, promoUrl, type AppPromo } from '../config/promos';
+import { fishingFestival, highlightParts, plainCopy, promoCopy, promoUrl, type AppPromo } from '../config/promos';
 import type { Locale } from '../i18n/locales';
 
 interface Props {
@@ -14,21 +14,24 @@ interface Props {
 
 const { locale, placement, promo = fishingFestival, class: className } = Astro.props;
 const text = promo.text[locale];
-const pitch = text.pitchFor?.[placement] ?? text.pitch;
+const copy = promoCopy(text, placement);
+const hook = highlightParts(copy.hook);
+const pitch = highlightParts(copy.pitch);
 const href = promoUrl(promo, locale, placement);
 ---
 
-<aside class:list={['app-promo', className]} aria-label={text.name} data-promo={promo.id}>
+<aside class:list={['app-promo', className]} aria-label={`${text.name}: ${plainCopy(copy.hook)}`} data-promo={promo.id}>
   <a class="app-promo-art" href={href} target="_blank" rel="noopener" tabindex="-1" aria-hidden="true">
     <img src={promo.image.src} width={promo.image.width} height={promo.image.height} alt="" loading="lazy" decoding="async" />
   </a>
   <div class="app-promo-body">
     <span class="app-promo-badge">{text.badge}</span>
+    <p class="app-promo-hook">{hook.map((p) => (p.hl ? <em>{p.text}</em> : p.text))}</p>
     <div class="app-promo-head">
-      <img class="app-promo-icon" src={promo.icon.src} width="44" height="44" alt="" loading="lazy" decoding="async" />
+      <img class="app-promo-icon" src={promo.icon.src} width="36" height="36" alt="" loading="lazy" decoding="async" />
       <strong class="app-promo-name">{text.name}</strong>
     </div>
-    <p class="app-promo-pitch">{pitch}</p>
+    <p class="app-promo-pitch">{pitch.map((p) => (p.hl ? <strong>{p.text}</strong> : p.text))}</p>
     <a class="app-promo-cta" href={href} target="_blank" rel="noopener">
       <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
         <path
@@ -75,6 +78,19 @@ const href = promoUrl(promo, locale, placement);
     color: #0c5e8f;
     background: #d9effc;
   }
+  .app-promo-hook {
+    margin: 0;
+    font-size: 19px;
+    font-weight: 800;
+    line-height: 1.4;
+    letter-spacing: -0.01em;
+    color: var(--text);
+  }
+  .app-promo-hook em {
+    font-style: normal;
+    color: #d9431f;
+    background: linear-gradient(transparent 62%, #ffe08a 62%);
+  }
   .app-promo-head {
     display: flex;
     align-items: center;
@@ -82,13 +98,13 @@ const href = promoUrl(promo, locale, placement);
   }
   .app-promo-icon {
     flex: none;
-    width: 44px;
-    height: 44px;
-    border-radius: 11px;
+    width: 36px;
+    height: 36px;
+    border-radius: 9px;
     box-shadow: 0 1px 3px rgb(0 0 0 / 0.2);
   }
   .app-promo-name {
-    font-size: 16px;
+    font-size: 14.5px;
     line-height: 1.35;
   }
   .app-promo-pitch {
@@ -96,6 +112,9 @@ const href = promoUrl(promo, locale, placement);
     font-size: 13.5px;
     line-height: 1.7;
     color: var(--text-2);
+  }
+  .app-promo-pitch strong {
+    color: var(--text);
   }
   .app-promo-cta {
     display: inline-flex;
