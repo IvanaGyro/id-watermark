@@ -12,6 +12,7 @@ import {
   rankOf,
   toYuan,
   trackMax,
+  medianWords,
   versusMedian,
 } from './logic';
 
@@ -118,6 +119,15 @@ describe('versusMedian and trackMax', () => {
   it('compares with a median', () => {
     expect(versusMedian(655_200, 54.6)).toBe(20);
     expect(versusMedian(436_800, 54.6)).toBe(-20);
+  });
+
+  it('words the gap, switching to a multiple at double the median', () => {
+    expect(medianWords(546_000, 54.6)).toBe('和中位數差不多');
+    expect(medianWords(655_200, 54.6)).toBe('比中位數高 20%');
+    expect(medianWords(436_800, 54.6)).toBe('比中位數低 20%');
+    expect(medianWords(1_081_080, 54.6)).toBe('比中位數高 98%');
+    expect(medianWords(1_092_000, 54.6)).toBe('是中位數的 2 倍');
+    expect(medianWords(9_000_000, 58.5)).toBe('是中位數的 15.4 倍');
   });
 
   it('fits the tracks to the pay within limits', () => {

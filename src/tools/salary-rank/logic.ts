@@ -1,3 +1,4 @@
+import { formatNumber } from '../../lib/format';
 import { LATEST, YEARS, type Quartiles, type YearRow } from './data';
 
 export type PayMode = 'monthly' | 'annual';
@@ -93,6 +94,14 @@ export function groupBand(annual: number, group: Quartiles): GroupBand {
 /** Whole percent above (+) or below (−) a median in 萬元. */
 export function versusMedian(annual: number, medianWan: number): number {
   return Math.round((annual / toYuan(medianWan) - 1) * 100);
+}
+
+/** A percent past 100 is hard to read, so double the median and up reads as a multiple. */
+export function medianWords(annual: number, medianWan: number): string {
+  const vs = versusMedian(annual, medianWan);
+  if (vs === 0) return '和中位數差不多';
+  if (vs >= 100) return `是中位數的 ${formatNumber(annual / toYuan(medianWan), 1)} 倍`;
+  return `比中位數${vs > 0 ? '高' : '低'} ${Math.abs(vs)}%`;
 }
 
 /** Right edge in 元 for the comparison tracks: fits every group, without letting huge pay squash them. */

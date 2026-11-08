@@ -169,6 +169,7 @@ const simpleFilters = [
         <i class="sr-track-band" data-band></i>
         <i class="sr-track-median" data-median></i>
         <i class="sr-track-you" data-you></i>
+        <span class="sr-track-label" data-you-label></span>
       </div>
       <p class="sr-row-foot" data-foot></p>
     </li>
@@ -202,7 +203,7 @@ const simpleFilters = [
     rankOf,
     toYuan,
     trackMax,
-    versusMedian,
+    medianWords,
     type GroupBand,
     type PayMode,
     type Rank,
@@ -503,6 +504,8 @@ const simpleFilters = [
     const rows = chosenRows();
     const max = trackMax(pay, rows.map((r) => r.group?.q3 ?? r.median));
     const at = (yuan: number) => `${Math.min(100, (yuan / max) * 100)}%`;
+    const youPct = (pay / max) * 100;
+    const labelAlign = youPct < 15 ? 'start' : youPct > 85 ? 'end' : 'center';
     rowsBox.replaceChildren(
       ...rows.map((row) => {
         const li = rowTemplate.content.firstElementChild!.cloneNode(true) as HTMLElement;
@@ -511,18 +514,25 @@ const simpleFilters = [
         if (row.group) {
           band.style.left = at(toYuan(row.group.q1));
           band.style.width = `calc(${at(toYuan(row.group.q3))} - ${at(toYuan(row.group.q1))})`;
-          $('[data-status]', li).textContent = BAND_TEXT[groupBand(pay, row.group)];
-          $('[data-foot]', li).textContent =
-            `贏過 25%：${row.group.q1} 萬　中位數：${row.group.median} 萬　贏過 75%：${row.group.q3} 萬`;
+          $('[data-status]', li).textContent = `${BAND_TEXT[groupBand(pay, row.group)]}・${medianWords(pay, row.median)}`;
+          $('[data-foot]', li).replaceChildren(
+            ...[`贏過 25%：${row.group.q1} 萬`, `中位數：${row.group.median} 萬`, `贏過 75%：${row.group.q3} 萬`].map((text) => {
+              const item = document.createElement('span');
+              item.textContent = text;
+              return item;
+            }),
+          );
         } else {
           band.hidden = true;
-          const vs = versusMedian(pay, row.median);
-          $('[data-status]', li).textContent =
-            vs === 0 ? '和中位數差不多' : `比中位數${vs > 0 ? '高' : '低'} ${Math.abs(vs)}%`;
+          $('[data-status]', li).textContent = medianWords(pay, row.median);
           $('[data-foot]', li).textContent = `中位數 ${row.median} 萬`;
         }
         $('[data-median]', li).style.left = at(toYuan(row.median));
         $('[data-you]', li).style.left = at(pay);
+        const label = $('[data-you-label]', li);
+        label.textContent = `你 ${wan(pay)}`;
+        label.style.left = at(pay);
+        label.dataset.align = labelAlign;
         return li;
       }),
     );
@@ -1006,6 +1016,7 @@ const simpleFilters = [
   .sr-track {
     position: relative;
     height: 16px;
+    margin-top: 22px;
     background: var(--surface-2);
     border-radius: 4px;
   }
@@ -1040,11 +1051,35 @@ const simpleFilters = [
     box-sizing: border-box;
     box-shadow: 0 0 0 1px var(--accent);
   }
+  .sr-track-label {
+    position: absolute;
+    bottom: calc(100% + 5px);
+    font-size: 12.5px;
+    font-weight: 700;
+    line-height: 1.2;
+    color: var(--text);
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+    transform: translateX(-50%);
+  }
+  /* Near an end of the track, stay inside the card instead of centering on the dot. */
+  .sr-track-label[data-align='start'] {
+    transform: translateX(-8px);
+  }
+  .sr-track-label[data-align='end'] {
+    transform: translateX(calc(-100% + 8px));
+  }
   .sr-row-foot {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0 14px;
     margin: 0;
     font-size: 12.5px;
     color: var(--muted);
     font-variant-numeric: tabular-nums;
+  }
+  .sr-row-foot :global(span) {
+    white-space: nowrap;
   }
   .sr-legend {
     display: flex;
