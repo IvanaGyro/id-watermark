@@ -196,15 +196,14 @@ const simpleFilters = [
     clampMonths,
     dotOrder,
     dotState,
-    groupBand,
+    groupRank,
     MAX_ANNUAL,
     nextMilestone,
     rankHistory,
     rankOf,
     toYuan,
     trackMax,
-    medianWords,
-    type GroupBand,
+    medianRank,
     type PayMode,
     type Rank,
   } from './logic';
@@ -239,13 +238,6 @@ const simpleFilters = [
   let shownPct = 0;
   let countFrame = 0;
 
-  const BAND_TEXT: Record<GroupBand, string> = {
-    top: '前 25%',
-    upper: '中位數到前 25%',
-    lower: '後 25% 到中位數',
-    bottom: '後 25%',
-  };
-
   function wan(yuan: number): string {
     return `${formatNumber(yuan / 10_000, 1)} 萬`;
   }
@@ -256,8 +248,8 @@ const simpleFilters = [
   }
 
   function rankWords(r: Rank): string {
-    if (r.kind === 'above') return '超過 90%';
-    if (r.kind === 'below') return '不到 10%';
+    if (r.kind === 'above') return `超過 ${r.pct}%`;
+    if (r.kind === 'below') return `不到 ${r.pct}%`;
     return `約 ${r.pct}%`;
   }
 
@@ -510,11 +502,12 @@ const simpleFilters = [
       ...rows.map((row) => {
         const li = rowTemplate.content.firstElementChild!.cloneNode(true) as HTMLElement;
         $('[data-name]', li).textContent = row.name;
+        const groupStanding = row.group ? groupRank(pay, row.group) : medianRank(pay, row.median);
+        $('[data-status]', li).textContent = `贏過${rankWords(groupStanding)}`;
         const band = $('[data-band]', li);
         if (row.group) {
           band.style.left = at(toYuan(row.group.q1));
           band.style.width = `calc(${at(toYuan(row.group.q3))} - ${at(toYuan(row.group.q1))})`;
-          $('[data-status]', li).textContent = `${BAND_TEXT[groupBand(pay, row.group)]}・${medianWords(pay, row.median)}`;
           $('[data-foot]', li).replaceChildren(
             ...[`贏過 25%：${row.group.q1} 萬`, `中位數：${row.group.median} 萬`, `贏過 75%：${row.group.q3} 萬`].map((text) => {
               const item = document.createElement('span');
@@ -524,7 +517,6 @@ const simpleFilters = [
           );
         } else {
           band.hidden = true;
-          $('[data-status]', li).textContent = medianWords(pay, row.median);
           $('[data-foot]', li).textContent = `中位數 ${row.median} 萬`;
         }
         $('[data-median]', li).style.left = at(toYuan(row.median));

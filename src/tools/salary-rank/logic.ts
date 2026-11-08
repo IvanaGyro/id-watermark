@@ -1,10 +1,8 @@
-import { formatNumber } from '../../lib/format';
 import { LATEST, YEARS, type Quartiles, type YearRow } from './data';
 
 export type PayMode = 'monthly' | 'annual';
 export type AmountStatus = 'empty' | 'small' | 'big' | 'ok';
 export type RankKind = 'below' | 'within' | 'above';
-export type GroupBand = 'bottom' | 'lower' | 'upper' | 'top';
 export type DotState = 'beat' | 'ahead' | 'you' | 'zone';
 
 export interface Rank {
@@ -61,16 +59,35 @@ function cutPoints(row: YearRow): [number, number][] {
   ].map(([pct, wan]) => [pct, toYuan(wan)]);
 }
 
-/** Straight-line interpolation between official cut points. Nothing is estimated outside D1 to D9. */
-export function rankOf(annual: number, row: YearRow = LATEST): Rank {
-  const points = cutPoints(row);
-  if (annual < points[0][1]) return { kind: 'below', pct: 10 };
-  if (annual > points[points.length - 1][1]) return { kind: 'above', pct: 90 };
+/** Straight-line interpolation between official cut points. Nothing is estimated outside the first and last cut. */
+function rankBetween(annual: number, points: [number, number][]): Rank {
+  const [firstPct, firstPay] = points[0];
+  const [lastPct, lastPay] = points[points.length - 1];
+  if (annual < firstPay) return { kind: 'below', pct: firstPct };
+  if (annual > lastPay) return { kind: 'above', pct: lastPct };
   const hi = points.findIndex(([, pay]) => pay >= annual);
-  if (hi === 0) return { kind: 'within', pct: 10 };
+  if (hi === 0) return { kind: 'within', pct: firstPct };
   const [p0, v0] = points[hi - 1];
   const [p1, v1] = points[hi];
   return { kind: 'within', pct: Math.round(p0 + ((annual - v0) / (v1 - v0)) * (p1 - p0)) };
+}
+
+export function rankOf(annual: number, row: YearRow = LATEST): Rank {
+  return rankBetween(annual, cutPoints(row));
+}
+
+/** Rank inside one group, which only has published quartiles. */
+export function groupRank(annual: number, { q1, median, q3 }: Quartiles): Rank {
+  return rankBetween(annual, [
+    [25, toYuan(q1)],
+    [50, toYuan(median)],
+    [75, toYuan(q3)],
+  ]);
+}
+
+/** Rank against a group with only a published median, such as a county. */
+export function medianRank(annual: number, medianWan: number): Rank {
+  return rankBetween(annual, [[50, toYuan(medianWan)]]);
 }
 
 /** The same pay against each published year. Pay is not adjusted for inflation. */
@@ -83,25 +100,6 @@ export function nextMilestone(annual: number): Milestone | null {
   const index = LATEST.d.findIndex((wan) => toYuan(wan) > annual);
   if (index < 0) return null;
   return { pct: (index + 1) * 10, gap: toYuan(LATEST.d[index]) - annual };
-}
-
-export function groupBand(annual: number, group: Quartiles): GroupBand {
-  if (annual >= toYuan(group.q3)) return 'top';
-  if (annual >= toYuan(group.median)) return 'upper';
-  return annual >= toYuan(group.q1) ? 'lower' : 'bottom';
-}
-
-/** Whole percent above (+) or below (−) a median in 萬元. */
-export function versusMedian(annual: number, medianWan: number): number {
-  return Math.round((annual / toYuan(medianWan) - 1) * 100);
-}
-
-/** A percent past 100 is hard to read, so double the median and up reads as a multiple. */
-export function medianWords(annual: number, medianWan: number): string {
-  const vs = versusMedian(annual, medianWan);
-  if (vs === 0) return '和中位數差不多';
-  if (vs >= 100) return `是中位數的 ${formatNumber(annual / toYuan(medianWan), 1)} 倍`;
-  return `比中位數${vs > 0 ? '高' : '低'} ${Math.abs(vs)}%`;
 }
 
 /** Right edge in 元 for the comparison tracks: fits every group, without letting huge pay squash them. */

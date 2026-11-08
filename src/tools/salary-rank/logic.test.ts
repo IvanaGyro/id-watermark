@@ -6,14 +6,13 @@ import {
   clampMonths,
   dotOrder,
   dotState,
-  groupBand,
+  groupRank,
   nextMilestone,
   rankHistory,
   rankOf,
   toYuan,
   trackMax,
-  medianWords,
-  versusMedian,
+  medianRank,
 } from './logic';
 
 describe('rankOf', () => {
@@ -82,14 +81,26 @@ describe('nextMilestone', () => {
   });
 });
 
-describe('groupBand', () => {
+describe('group ranks', () => {
   const group = { q1: 40, median: 50, q3: 60 };
 
-  it('places pay against the quartiles', () => {
-    expect(groupBand(399_999, group)).toBe('bottom');
-    expect(groupBand(400_000, group)).toBe('lower');
-    expect(groupBand(500_000, group)).toBe('upper');
-    expect(groupBand(600_000, group)).toBe('top');
+  it('interpolates between the quartiles', () => {
+    expect(groupRank(400_000, group)).toEqual({ kind: 'within', pct: 25 });
+    expect(groupRank(450_000, group)).toEqual({ kind: 'within', pct: 38 });
+    expect(groupRank(500_000, group)).toEqual({ kind: 'within', pct: 50 });
+    expect(groupRank(550_000, group)).toEqual({ kind: 'within', pct: 63 });
+    expect(groupRank(600_000, group)).toEqual({ kind: 'within', pct: 75 });
+  });
+
+  it('estimates nothing outside the quartiles', () => {
+    expect(groupRank(399_999, group)).toEqual({ kind: 'below', pct: 25 });
+    expect(groupRank(600_001, group)).toEqual({ kind: 'above', pct: 75 });
+  });
+
+  it('only places pay around a lone median', () => {
+    expect(medianRank(499_999, 50)).toEqual({ kind: 'below', pct: 50 });
+    expect(medianRank(500_000, 50)).toEqual({ kind: 'within', pct: 50 });
+    expect(medianRank(500_001, 50)).toEqual({ kind: 'above', pct: 50 });
   });
 });
 
@@ -115,21 +126,7 @@ describe('pay input', () => {
   });
 });
 
-describe('versusMedian and trackMax', () => {
-  it('compares with a median', () => {
-    expect(versusMedian(655_200, 54.6)).toBe(20);
-    expect(versusMedian(436_800, 54.6)).toBe(-20);
-  });
-
-  it('words the gap, switching to a multiple at double the median', () => {
-    expect(medianWords(546_000, 54.6)).toBe('和中位數差不多');
-    expect(medianWords(655_200, 54.6)).toBe('比中位數高 20%');
-    expect(medianWords(436_800, 54.6)).toBe('比中位數低 20%');
-    expect(medianWords(1_081_080, 54.6)).toBe('比中位數高 98%');
-    expect(medianWords(1_092_000, 54.6)).toBe('是中位數的 2 倍');
-    expect(medianWords(9_000_000, 58.5)).toBe('是中位數的 15.4 倍');
-  });
-
+describe('trackMax', () => {
   it('fits the tracks to the pay within limits', () => {
     expect(trackMax(500_000, [100])).toBe(1_150_000);
     expect(trackMax(1_400_000, [100])).toBe(1_470_000);
