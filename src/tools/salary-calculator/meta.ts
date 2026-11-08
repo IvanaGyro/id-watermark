@@ -110,7 +110,7 @@ export default defineTool({
       a: '本工具採用勞保局與健保署公告的 2026 年級距與費率，四捨五入方式與官方保險費分擔表一致。實際扣款仍以公司申報的投保金額與薪資單為準，結果僅供參考。',
     },
   ],
-  related: ['income-tax-calculator', 'labor-pension', 'overtime-pay', 'annual-leave', 'exchange-rate', 'salary-per-second'],
+  related: ['salary-rank', 'income-tax-calculator', 'labor-pension', 'overtime-pay', 'annual-leave', 'exchange-rate', 'salary-per-second'],
   priority: 98,
   updated: '2026-10-29',
 });

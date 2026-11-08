@@ -87,7 +87,7 @@ export default defineTool({
       a: '不會。所有計算都在瀏覽器完成，設定只存在這台裝置的瀏覽器中，清除瀏覽資料就會刪除。',
     },
   ],
-  related: ['salary-calculator', 'overtime-pay', 'pomodoro', 'meeting-cost', 'countdown-timer', 'year-end-bonus'],
+  related: ['salary-rank', 'salary-calculator', 'overtime-pay', 'pomodoro', 'meeting-cost', 'countdown-timer', 'year-end-bonus'],
   priority: 50,
   updated: '2026-11-03',
 });

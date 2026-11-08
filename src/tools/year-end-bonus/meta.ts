@@ -100,7 +100,7 @@ export default defineTool({
       a: '不扣一般的勞保、健保與勞退。這些保費依每月投保級距計算，年終獎金不會改變你的級距；只有累計超過 4 倍門檻時，才另外扣二代健保補充保費。',
     },
   ],
-  related: ['salary-calculator', 'income-tax-calculator', 'severance-pay', 'unemployment-benefit', 'labor-pension', 'salary-per-second'],
+  related: ['salary-rank', 'salary-calculator', 'income-tax-calculator', 'severance-pay', 'unemployment-benefit', 'labor-pension', 'salary-per-second'],
   priority: 94,
   updated: '2026-10-29',
 });
