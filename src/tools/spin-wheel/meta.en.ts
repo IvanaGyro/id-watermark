@@ -90,7 +90,7 @@ export default defineTool({
       a: 'Yes. Tap the center of the wheel on a phone or tablet, or press Full screen on a computer to project it. No app download is needed.',
     },
   ],
-  related: ['random-picker', 'ichiban-kuji', 'random-number', 'countdown-timer', 'scratch-card', 'password-generator'],
+  related: ['gift-exchange', 'random-picker', 'ichiban-kuji', 'random-number', 'countdown-timer', 'scratch-card', 'password-generator'],
   priority: 95,
   updated: '2026-10-29',
 });

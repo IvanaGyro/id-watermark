@@ -88,7 +88,7 @@ export default defineTool({
       a: 'No. Everything runs in your browser. The list and settings are saved only on your device so they are there next time, and Clear removes them.',
     },
   ],
-  related: ['spin-wheel', 'ichiban-kuji', 'random-number', 'countdown-timer', 'scratch-card', 'password-generator'],
+  related: ['gift-exchange', 'spin-wheel', 'ichiban-kuji', 'random-number', 'countdown-timer', 'scratch-card', 'password-generator'],
   priority: 70,
   updated: '2026-10-29',
 });

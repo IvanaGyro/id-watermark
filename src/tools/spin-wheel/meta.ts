@@ -90,7 +90,7 @@ export default defineTool({
       a: '可以。電腦版可按「全螢幕」放大轉盤，手機與平板也能直接點擊轉盤中央轉動，不需要下載 App。',
     },
   ],
-  related: ['random-picker', 'ichiban-kuji', 'random-number', 'split-bill', 'moon-blocks', 'scratch-card', 'countdown-timer', 'password-generator'],
+  related: ['gift-exchange', 'random-picker', 'ichiban-kuji', 'random-number', 'split-bill', 'moon-blocks', 'scratch-card', 'countdown-timer', 'password-generator'],
   priority: 95,
   updated: '2026-10-29',
 });

@@ -199,6 +199,8 @@ const conversionLinks = locale === 'zh-TW' && ['unit-converter', 'ping-converter
     font-size: clamp(30px, 4.5vw, 42px);
     font-weight: 800;
     letter-spacing: -0.02em;
+    /* A long Japanese phrase has no break point of its own and would widen the page on a phone. */
+    overflow-wrap: anywhere;
   }
   .title-row {
     display: flex;

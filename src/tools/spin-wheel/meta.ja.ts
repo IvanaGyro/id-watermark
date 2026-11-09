@@ -89,7 +89,7 @@ export default defineTool({
       a: '使えます。スマホやタブレットではルーレットの中央をタップするだけで回せます。アプリのインストールは不要です。',
     },
   ],
-  related: ['random-picker', 'ichiban-kuji', 'random-number', 'countdown-timer', 'scratch-card', 'password-generator'],
+  related: ['gift-exchange', 'random-picker', 'ichiban-kuji', 'random-number', 'countdown-timer', 'scratch-card', 'password-generator'],
   priority: 95,
   updated: '2026-10-29',
 });

@@ -9,9 +9,11 @@ interface Props {
   canvasAria: string;
   /** Use a smaller heading in the preview. */
   compact?: boolean;
+  /** The title is filled in by a script and starts empty, so it should not count as a page heading. */
+  plainTitle?: boolean;
 }
-const { id, canvasAria, compact = false } = Astro.props;
-const Heading = compact ? 'p' : 'h2';
+const { id, canvasAria, compact = false, plainTitle = false } = Astro.props;
+const Heading = compact || plainTitle ? 'p' : 'h2';
 ---
 
 <div class:list={['sc-stage', { 'is-compact': compact }]} id={`sc-${id}-stage`}>
