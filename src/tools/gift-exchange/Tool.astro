@@ -139,7 +139,11 @@ const modeIcons: Record<Mode, string> = { link: 'Link', pass: 'Smartphone', stag
     <div class="ge-bar" id="ge-bar">
       <p class="ge-bar-title" id="ge-bar-title"></p>
       <span class="ge-bar-progress" id="ge-bar-progress"></span>
-      <button class="btn small ghost" type="button" id="ge-fs" hidden><Icon name="Maximize" size={16} /><span id="ge-fs-label">{s.client.fullscreen}</span></button>
+      <button class="btn small ghost" type="button" id="ge-sound">
+        <span class="ge-sound-icon" id="ge-sound-on"><Icon name="Volume2" size={16} /></span>
+        <span class="ge-sound-icon" id="ge-sound-off" hidden><Icon name="VolumeX" size={16} /></span>
+      </button>
+      <button class="btn small ghost" type="button" id="ge-fs" hidden><Icon name="Maximize" size={16} /><span class="ge-fs-label" id="ge-fs-label">{s.client.fullscreen}</span></button>
       <div class="ge-track" id="ge-track" aria-hidden="true"><span id="ge-track-fill"></span></div>
     </div>
 
@@ -227,12 +231,14 @@ const modeIcons: Record<Mode, string> = { link: 'Link', pass: 'Smartphone', stag
   import { fitFontSize } from '../scratch-card/logic';
   import { ScratchLayer } from '../scratch-card/scratch';
   import type { Strings } from './i18n';
+  import { GiftSounds } from './sound';
   import {
     activePairs,
     checkNames,
     decodeInvite,
     duplicateNames,
     finishTurn,
+    fitBoard,
     inviteUrl,
     isFinished,
     LIMITS,
@@ -258,6 +264,11 @@ const modeIcons: Record<Mode, string> = { link: 'Link', pass: 'Smartphone', stag
   const DRAFT_KEY = `gift-exchange:${locale}`;
   const SESSION_KEY = `gift-exchange:${locale}:session`;
   const INVITE_KEY = 'gift-exchange:invite';
+  const SOUND_KEY = 'gift-exchange:sound';
+  /** Gap between scratch sounds, so a fast stroke does not pile them up. */
+  const SCRATCH_SOUND_MS = 70;
+  /** A box never takes more than this share of the screen height, even with three people. */
+  const MAX_BOX_SHARE = 0.4;
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
 
   const GIFTS: [string, string][] = [
@@ -296,6 +307,7 @@ const modeIcons: Record<Mode, string> = { link: 'Link', pass: 'Smartphone', stag
   };
 
   let session: Session | null = null;
+  const sounds = new GiftSounds(loadPref(SOUND_KEY, true));
 
   function setView(view: View) {
     root.dataset.view = view;
@@ -592,6 +604,7 @@ const modeIcons: Record<Mode, string> = { link: 'Link', pass: 'Smartphone', stag
     renderBoard();
     renderRevealed();
     setStep('pick');
+    layoutBoard();
     bringIntoView(pickLead);
   }
 
@@ -599,6 +612,7 @@ const modeIcons: Record<Mode, string> = { link: 'Link', pass: 'Smartphone', stag
     const box = (event.target as Element).closest<HTMLButtonElement>('[data-box]');
     if (!box || box.disabled || !session) return;
     const index = Number(box.dataset.box);
+    sounds.play('pick');
     takenBoxes.add(index);
     const person = currentPerson();
     const name = session.names[person];
@@ -679,9 +693,19 @@ const modeIcons: Record<Mode, string> = { link: 'Link', pass: 'Smartphone', stag
       nextBtn.textContent = opening.nextLabel;
       makeBtn.hidden = Boolean(opening.nextLabel);
       liveEl.textContent = t(s.revealed, { text: `${opening.title} ${opening.message}`.replace(/\n/g, ' ') });
+      sounds.play('reveal');
       celebrate();
       (opening.nextLabel ? nextBtn : makeBtn).focus({ preventScroll: true });
     },
+  });
+
+  // The layer's own listeners do the erasing; this one only adds the sound of it.
+  const scratchCanvas = $<HTMLCanvasElement>('#sc-x-canvas', root);
+  let lastScratch = 0;
+  scratchCanvas.addEventListener('pointermove', (event) => {
+    if (!event.buttons || layer.isRevealed || event.timeStamp - lastScratch < SCRATCH_SOUND_MS) return;
+    lastScratch = event.timeStamp;
+    sounds.play('scratch');
   });
 
   function celebrate() {
@@ -744,8 +768,10 @@ const modeIcons: Record<Mode, string> = { link: 'Link', pass: 'Smartphone', stag
   function playOpen() {
     big.disabled = true;
     if (reducedMotion.matches) return showCard();
+    sounds.play('shake');
     big.classList.add('is-shaking');
     openTimer = window.setTimeout(() => {
+      sounds.play('open');
       big.classList.replace('is-shaking', 'is-open');
       openTimer = window.setTimeout(showCard, 480);
     }, 650);
@@ -781,6 +807,8 @@ const modeIcons: Record<Mode, string> = { link: 'Link', pass: 'Smartphone', stag
     session = finishTurn(session);
     saveSession();
     liveEl.textContent = '';
+    // Played here, not in showDone: reloading a finished draw has no tap to unlock audio with.
+    if (isFinished(session)) sounds.play('finish');
     resume();
   });
 
@@ -873,7 +901,42 @@ const modeIcons: Record<Mode, string> = { link: 'Link', pass: 'Smartphone', stag
     const on = document.fullscreenElement === stage;
     fsLabel.textContent = on ? s.exitFullscreen : s.fullscreen;
     stage.classList.toggle('is-fullscreen', on);
+    layoutBoard();
   });
+
+  /** On a big screen the boxes grow to fill the space; everywhere else CSS sizes them. */
+  function layoutBoard() {
+    if (!session || !stage.classList.contains('is-fullscreen') || stage.dataset.step !== 'pick') {
+      board.style.removeProperty('--ge-box-size');
+      board.style.maxWidth = '';
+      return;
+    }
+    const gap = parseFloat(getComputedStyle(board).rowGap) || 0;
+    const { columns, size } = fitBoard(session.names.length, steps.pick.clientWidth, board.clientHeight, gap, window.innerHeight * MAX_BOX_SHARE);
+    board.style.setProperty('--ge-box-size', `${size}px`);
+    // One spare pixel so rounding cannot push the last box of a row onto the next one.
+    board.style.maxWidth = `${columns * size + (columns - 1) * gap + 1}px`;
+  }
+  new ResizeObserver(layoutBoard).observe(steps.pick);
+
+  /* ---------- Sound on and off ---------- */
+  const soundBtn = $<HTMLButtonElement>('#ge-sound', root);
+  const soundOnIcon = $('#ge-sound-on', root);
+  const soundOffIcon = $('#ge-sound-off', root);
+
+  function renderSound() {
+    const label = sounds.enabled ? s.soundOff : s.soundOn;
+    soundBtn.setAttribute('aria-label', label);
+    soundBtn.title = label;
+    soundOnIcon.hidden = !sounds.enabled;
+    soundOffIcon.hidden = sounds.enabled;
+  }
+  soundBtn.addEventListener('click', () => {
+    sounds.setEnabled(!sounds.enabled);
+    savePref(SOUND_KEY, sounds.enabled);
+    renderSound();
+  });
+  renderSound();
 
   /* ---------- Routing ---------- */
   function showSetup(invalidLink = false) {
@@ -901,7 +964,8 @@ const modeIcons: Record<Mode, string> = { link: 'Link', pass: 'Smartphone', stag
 
   function showInvite(invite: Invite) {
     setView('stage');
-    barEl.hidden = !invite.details.title;
+    // Stays visible even without a title, because it holds the sound button.
+    barEl.hidden = false;
     barTitle.textContent = invite.details.title;
     barProgress.textContent = '';
     track.hidden = true;
@@ -1253,24 +1317,99 @@ const modeIcons: Record<Mode, string> = { link: 'Link', pass: 'Smartphone', stag
   }
   /* Read from across a room: everything scales with the screen height. */
   .ge-stage.is-fullscreen {
-    align-content: start;
+    grid-template-rows: auto 1fr auto;
+    gap: 2vh;
     padding: 3vh 5vw;
     overflow: auto;
+    border-radius: 0;
+  }
+  /* The board takes whatever height is left, so its row must not grow with its content. */
+  .ge-stage.is-fullscreen[data-step='pick'] {
+    grid-template-rows: auto minmax(0, 1fr) auto;
+  }
+  .ge-stage.is-fullscreen .ge-step {
+    align-content: center;
+    gap: 2.4vh;
+    min-height: 0;
+  }
+  .ge-stage.is-fullscreen .ge-pick {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
   }
   .ge-stage.is-fullscreen .ge-bar-title,
   .ge-stage.is-fullscreen .ge-bar-progress {
     font-size: 2.4vh;
   }
+  .ge-stage.is-fullscreen .ge-track {
+    height: max(6px, 0.7vh);
+  }
   .ge-stage.is-fullscreen .ge-heading,
   .ge-stage.is-fullscreen :global(.sc-title) {
     font-size: 4.6vh;
   }
+  .ge-stage.is-fullscreen .ge-big-name {
+    font-size: 14vh;
+  }
+  .ge-stage.is-fullscreen .ge-lead,
+  .ge-stage.is-fullscreen .hint,
+  .ge-stage.is-fullscreen .ge-warn,
+  .ge-stage.is-fullscreen .ge-big-hint,
+  .ge-stage.is-fullscreen .ge-scratch-hint,
+  .ge-stage.is-fullscreen .ge-revealed-h,
+  .ge-stage.is-fullscreen .ge-more {
+    font-size: max(15px, 2.4vh);
+  }
+  .ge-stage.is-fullscreen .btn {
+    min-height: max(40px, 5.6vh);
+    padding-inline: max(14px, 2.2vh);
+    font-size: max(15px, 2.2vh);
+  }
+  .ge-stage.is-fullscreen .btn.small {
+    min-height: max(32px, 4.4vh);
+    padding-inline: max(10px, 1.6vh);
+    font-size: max(14px, 1.9vh);
+  }
+  .ge-stage.is-fullscreen .btn :global(svg) {
+    width: 1.15em;
+    height: 1.15em;
+  }
+  .ge-stage.is-fullscreen .ge-cta {
+    min-height: max(50px, 7vh);
+    padding-inline: 4vh;
+    font-size: max(16px, 2.8vh);
+  }
   .ge-stage.is-fullscreen .ge-board {
-    grid-template-columns: repeat(auto-fill, minmax(17vh, 1fr));
+    flex: 1 1 0;
+    align-content: center;
     gap: 2.4vh;
+    min-height: 0;
+  }
+  .ge-stage.is-fullscreen .ge-box {
+    flex-basis: var(--ge-box-size, 17vh);
+  }
+  .ge-stage.is-fullscreen .ge-big {
+    width: min(46vh, 62vw);
   }
   .ge-stage.is-fullscreen :global(.sc-card) {
     width: min(100%, 88vh);
+  }
+  .ge-stage.is-fullscreen .ge-facts {
+    width: min(100%, 88vh);
+    font-size: max(15px, 2.2vh);
+  }
+  .ge-stage.is-fullscreen .ge-facts :global(dt) {
+    font-size: inherit;
+  }
+  .ge-stage.is-fullscreen .ge-revealed {
+    flex: none;
+    max-height: 24vh;
+    padding-top: 0;
+    overflow: auto;
+  }
+  .ge-stage.is-fullscreen .ge-revealed .ge-results {
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 44vh), 1fr));
+    gap: 0.6vh 3vh;
   }
   .ge-stage.is-fullscreen .ge-results,
   .ge-stage.is-fullscreen .ge-done-text {
@@ -1302,6 +1441,21 @@ const modeIcons: Record<Mode, string> = { link: 'Link', pass: 'Smartphone', stag
     font-size: 14px;
     color: var(--text-2);
     font-variant-numeric: tabular-nums;
+  }
+  /* Icon only on a phone, so the bar stays on one row; screen readers still get the words. */
+  @media (max-width: 480px) {
+    .ge-fs-label {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+      white-space: nowrap;
+    }
+    .ge-bar-title {
+      flex: 1 1 0;
+      min-width: 0;
+    }
   }
   .ge-track {
     flex: 1 0 100%;
@@ -1367,14 +1521,16 @@ const modeIcons: Record<Mode, string> = { link: 'Link', pass: 'Smartphone', stag
 
   /* Board */
   .ge-board {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(88px, 1fr));
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
     gap: 10px;
     width: 100%;
   }
   .ge-box {
     display: block;
-    width: 100%;
+    /* Three to a row on a phone, a fixed size on anything wider; a short last row stays centred. */
+    flex: 0 0 clamp(60px, calc((100% - 20px) / 3), 112px);
     padding: 4px;
     background: none;
     border: 0;

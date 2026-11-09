@@ -10,6 +10,7 @@ import {
   EMPTY_DETAILS,
   encodeInvite,
   finishTurn,
+  fitBoard,
   FRAGMENT_KEY,
   inviteUrl,
   isFinished,
@@ -44,6 +45,44 @@ function seeded(seed: number): RandomSource {
 }
 
 const NAMES = ['小明', '小美', '阿傑', '雅婷', '志豪', '怡君'];
+
+describe('fitBoard', () => {
+  it('lays a few boxes out in one row when the area is wide', () => {
+    expect(fitBoard(5, 900, 350, 13)).toEqual({ columns: 5, size: 169 });
+  });
+
+  it('prefers one row when its boxes are nearly as large as two rows would allow', () => {
+    expect(fitBoard(5, 1728, 698, 26)).toEqual({ columns: 5, size: 324 });
+  });
+
+  it('uses two rows when one row would make the boxes much smaller', () => {
+    expect(fitBoard(8, 1728, 698, 26).columns).toBe(4);
+  });
+
+  it('keeps rows even when a smaller column count gives the same box', () => {
+    expect(fitBoard(7, 900, 350, 13)).toEqual({ columns: 4, size: 168 });
+  });
+
+  it('stacks boxes when the area is tall', () => {
+    expect(fitBoard(4, 300, 1000, 10).columns).toBe(1);
+  });
+
+  it('never makes a box larger than the cap', () => {
+    expect(fitBoard(3, 1800, 900, 20, 400)).toEqual({ columns: 3, size: 400 });
+  });
+
+  it('always fits inside the area, from the smallest draw to the largest', () => {
+    for (const [width, height] of [[900, 350], [1700, 800], [3400, 800], [600, 800]]) {
+      for (let count = LIMITS.minNames; count <= LIMITS.maxNames; count++) {
+        const { columns, size } = fitBoard(count, width, height, 12);
+        const rows = Math.ceil(count / columns);
+        expect(size).toBeGreaterThan(0);
+        expect(columns * size + (columns - 1) * 12).toBeLessThanOrEqual(width);
+        expect(rows * size + (rows - 1) * 12).toBeLessThanOrEqual(height);
+      }
+    }
+  });
+});
 
 describe('parseNames', () => {
   it('splits on lines and list punctuation, keeps spaces inside a name', () => {

@@ -90,6 +90,8 @@ export interface Strings {
     scratchHere: string;
     fullscreen: string;
     exitFullscreen: string;
+    soundOn: string;
+    soundOff: string;
   };
 }
 
@@ -185,6 +187,8 @@ export default defineToolI18n<Strings>({
       scratchHere: '刮開這裡',
       fullscreen: '全螢幕',
       exitFullscreen: '離開全螢幕',
+      soundOn: '開啟音效',
+      soundOff: '關閉音效',
     },
   },
   en: {
@@ -278,6 +282,8 @@ export default defineToolI18n<Strings>({
       scratchHere: 'Scratch here',
       fullscreen: 'Full screen',
       exitFullscreen: 'Exit full screen',
+      soundOn: 'Turn sound on',
+      soundOff: 'Turn sound off',
     },
   },
   ja: {
@@ -371,6 +377,8 @@ export default defineToolI18n<Strings>({
       scratchHere: 'ここを削ってね',
       fullscreen: '全画面',
       exitFullscreen: '全画面を終了',
+      soundOn: '効果音をオン',
+      soundOff: '効果音をオフ',
     },
   },
 });

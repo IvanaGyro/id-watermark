@@ -12,6 +12,28 @@ const defaultRandom: RandomSource = (array) => {
   return array;
 };
 
+/** A layout with fewer rows may win with boxes this much smaller than the largest possible. */
+const FEWER_ROWS_SHARE = 0.9;
+
+/**
+ * Column count and box size that fill a width × height area with `count` square boxes. Among layouts
+ * close to the largest box, fewer rows win, then fewer columns: five boxes sit in one row rather than
+ * 3 + 2, and seven sit as 4 + 3 rather than 5 + 2.
+ */
+export function fitBoard(count: number, width: number, height: number, gap: number, maxSize = Infinity): { columns: number; size: number } {
+  const layouts = Array.from({ length: count }, (_, i) => {
+    const columns = i + 1;
+    const rows = Math.ceil(count / columns);
+    const fit = Math.min((width - (columns - 1) * gap) / columns, (height - (rows - 1) * gap) / rows);
+    return { columns, rows, size: Math.max(0, Math.floor(Math.min(fit, maxSize))) };
+  });
+  const largest = Math.max(...layouts.map((layout) => layout.size));
+  const near = layouts.filter((layout) => layout.size >= largest * FEWER_ROWS_SHARE);
+  const fewestRows = Math.min(...near.map((layout) => layout.rows));
+  const { columns, size } = near.find((layout) => layout.rows === fewestRows)!;
+  return { columns, size };
+}
+
 export const FORMAT_VERSION = 1;
 /** Only fragments that start with this are invites; other anchors (#faq …) are ignored. */
 export const FRAGMENT_KEY = 'gift=';
