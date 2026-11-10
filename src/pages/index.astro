@@ -1,5 +1,35 @@
 ---
-import HomeView from '../views/HomeView.astro';
+import '../styles/global.css';
+import WatermarkTool from '../tools/id-watermark/Tool.astro';
 ---
-
-<HomeView locale="zh-TW" />
+<!doctype html>
+<html lang="zh-Hant-TW">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="證件照片加浮水印、遮蔽，圖片在瀏覽器本機處理，不需上傳。" />
+    <meta name="color-scheme" content="light" />
+    <meta name="theme-color" content="#ffffff" />
+    <meta name="referrer" content="no-referrer" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data:; connect-src 'self'; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'none'; frame-src 'none'" />
+    <title>證件照片浮水印｜本機處理</title>
+  </head>
+  <body>
+    <header class="container page-header">
+      <h1>證件照片浮水印</h1>
+      <p>圖片只在本機處理；表單選項會保留在這個瀏覽器的 localStorage。</p>
+    </header>
+    <main class="container">
+      <WatermarkTool locale="zh-TW" />
+    </main>
+    <footer class="container page-footer">
+      基於 <a href="https://github.com/tatdt622989/tool.6yuwei.com">原作者專案</a> 修改，
+      <a href="https://github.com/IvanaGyro/id-watermark">公開原始碼</a>；AGPL-3.0-only
+    </footer>
+  </body>
+</html>
+<style>
+  .page-header { padding-top: 24px; padding-bottom: 20px; }
+  .page-header p { color: var(--text-2); margin: 10px 0 0; }
+  .page-footer { padding-top: 28px; padding-bottom: 40px; text-align: center; font-size: .9rem; color: var(--text-2); }
+</style>

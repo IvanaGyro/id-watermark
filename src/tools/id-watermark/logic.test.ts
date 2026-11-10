@@ -381,3 +381,15 @@ describe('normalizeSettings', () => {
     expect(s.color).toBe(DEFAULT_SETTINGS.color);
   });
 });
+
+describe('AVIF and PNG compression settings', () => {
+  it('accepts AVIF and derives its filename', () => {
+    expect(outputFilename('sample.png', 'avif')).toBe('sample-watermark.avif');
+    expect(normalizeSettings({ format: 'avif' }).format).toBe('avif');
+  });
+  it('persists the PNG compression level within supported bounds', () => {
+    expect(normalizeSettings(null).pngLevel).toBe(3);
+    expect(normalizeSettings({ pngLevel: 10 }).pngLevel).toBe(6);
+    expect(normalizeSettings({ pngLevel: 0 }).pngLevel).toBe(1);
+  });
+});

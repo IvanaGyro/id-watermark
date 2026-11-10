@@ -4,7 +4,7 @@
 export type LayoutMode = 'tile' | 'center' | 'both';
 export type MaskKind = 'black' | 'mosaic';
 export type MaskMode = 'off' | MaskKind;
-export type OutputFormat = 'jpeg' | 'png';
+export type OutputFormat = 'jpeg' | 'png' | 'avif';
 export type TemplateId = 'apply' | 'copy' | 'custom';
 export type PresetId = Exclude<TemplateId, 'custom'>;
 export type ColorId = 'red' | 'gray' | 'black' | 'blue' | 'white';
@@ -348,8 +348,8 @@ export function fitWithin(width: number, height: number, maxLong: number): { wid
   return { width: Math.max(1, Math.round(width * scale)), height: Math.max(1, Math.round(height * scale)), scale };
 }
 
-export function outputMime(format: OutputFormat): 'image/png' | 'image/jpeg' {
-  return format === 'png' ? 'image/png' : 'image/jpeg';
+export function outputMime(format: OutputFormat): 'image/png' | 'image/jpeg' | 'image/avif' {
+  return format === 'png' ? 'image/png' : format === 'avif' ? 'image/avif' : 'image/jpeg';
 }
 
 /** JPG slider 10–100 → encoder 0.1–1; PNG ignores quality. */
@@ -365,7 +365,7 @@ export function outputFilename(name: string, format: OutputFormat, suffix = '-wa
   const stem = (dot > 0 ? name.slice(0, dot) : name)
     .replace(/[\\/:*?"<>|\u0000-\u001f]+/g, '_')
     .trim();
-  return `${stem || 'image'}${suffix}.${format === 'png' ? 'png' : 'jpg'}`;
+  return `${stem || 'image'}${suffix}.${format === 'png' ? 'png' : format === 'avif' ? 'avif' : 'jpg'}`;
 }
 
 /** Makes names unique for a ZIP: a.jpg, a.jpg → a.jpg, a (2).jpg. */
@@ -420,6 +420,7 @@ export interface Settings extends Style {
   custom: string;
   format: OutputFormat;
   quality: number;
+  pngLevel: number;
   maxSide: number;
 }
 
@@ -450,6 +451,7 @@ export const DEFAULT_SETTINGS: Settings = {
   custom: '',
   format: 'jpeg',
   quality: 85,
+  pngLevel: 3,
   maxSide: 2400,
 };
 
@@ -481,8 +483,9 @@ export function normalizeSettings(raw: unknown, defaults: Settings = DEFAULT_SET
     purpose: typeof r.purpose === 'string' ? cleanField(r.purpose) : defaults.purpose,
     dateOn: bool(r.dateOn, defaults.dateOn),
     custom: typeof r.custom === 'string' ? r.custom.slice(0, 400) : defaults.custom,
-    format: pick(r.format, ['jpeg', 'png'] as const, defaults.format),
+    format: pick(r.format, ['jpeg', 'png', 'avif'] as const, defaults.format),
     quality: Math.round(num(r.quality, defaults.quality, L.quality.min, L.quality.max)),
+    pngLevel: Math.round(num(r.pngLevel, defaults.pngLevel, 1, 6)),
     maxSide: pick<number>(Number(r.maxSide), MAX_SIDE_OPTIONS, defaults.maxSide),
   };
 }

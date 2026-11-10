@@ -1,6 +1,5 @@
 ---
 import { i18nAttrs, pickStrings, type ToolProps } from '../../i18n/tool';
-import { localePath } from '../../i18n/locales';
 import { formatInteger, t } from '../../i18n/format';
 import Icon from '../../components/Icon.astro';
 import { COLOR_IDS, COLOR_PRESETS, DEFAULT_SETTINGS, LAYOUTS, MASK_MODES, MAX_SIDE_OPTIONS, STYLE_LIMITS, TEMPLATES } from './logic';
@@ -11,10 +10,9 @@ const { locale = 'zh-TW' } = Astro.props;
 const s = pickStrings(i18n, locale);
 const d = DEFAULT_SETTINGS;
 const L = STYLE_LIMITS;
-const heicHref = localePath(locale, '/heic-to-jpg/');
 ---
 
-<div class="tool" data-tool="id-watermark" data-heic-href={heicHref} {...i18nAttrs(locale, s.client)}>
+<div class="tool" data-tool="id-watermark" {...i18nAttrs(locale, s.client)}>
   <p class="notice ok iw-privacy">
     <Icon name="Lock" size={18} strokeWidth={2} class="iw-privacy-icon" />
     <span><strong>{s.privacyStrong}</strong>{s.privacyText}</span>
@@ -166,6 +164,7 @@ const heicHref = localePath(locale, '/heic-to-jpg/');
           <div class="seg" role="radiogroup" aria-labelledby="iw-format-label">
             <label><input type="radio" name="iw-format" value="jpeg" checked={d.format === 'jpeg'} /><span>JPG</span></label>
             <label><input type="radio" name="iw-format" value="png" checked={d.format === 'png'} /><span>PNG</span></label>
+            <label><input type="radio" name="iw-format" value="avif" checked={d.format === 'avif'} /><span>AVIF</span></label>
           </div>
         </div>
         <div class="field">
@@ -184,8 +183,12 @@ const heicHref = localePath(locale, '/heic-to-jpg/');
           <label for="iw-quality">{s.qualityLabel} <output id="iw-quality-out" for="iw-quality"></output></label>
           <input id="iw-quality" type="range" min={L.quality.min} max={L.quality.max} step={L.quality.step} value={d.quality} />
         </div>
+        <div class="field" id="iw-png-level-field" hidden>
+          <label for="iw-png-level">PNG 無損壓縮等級 <output id="iw-png-level-out" for="iw-png-level"></output> / 6</label>
+          <input id="iw-png-level" type="range" min="1" max="6" step="1" value={d.pngLevel} />
+        </div>
       </div>
-      <p class="hint">{s.exportHint}</p>
+      <p class="hint">{s.exportHint} PNG 使用無損壓縮，等級越高越慢；AVIF 使用 libaom 高壓縮有損編碼，處理高解析度照片可能很久。</p>
       <div class="row">
         <button class="btn primary" type="button" id="iw-download" disabled><Icon name="Download" size={18} />{s.download}</button>
         <button class="btn" type="button" id="iw-zip" hidden><Icon name="FileArchive" size={18} />{s.zip}</button>
@@ -200,11 +203,12 @@ const heicHref = localePath(locale, '/heic-to-jpg/');
 </div>
 
 <script>
-  import { $, $$, debounce, downloadBlob, loadPref, savePref } from '../../lib/client';
+  import { $, $$, downloadBlob, loadPref, savePref } from '../../lib/client';
+  import { encodeAdvanced } from '../../lib/image-encode';
   import { isHeic, prepareImage } from '../../lib/heic';
   import { readI18n } from '../../i18n/client';
   import { formatBytes, formatInteger, formatNumber, t } from '../../i18n/format';
-  import { createZip } from '../pdf-split/zip';
+  import { createZip } from '../../lib/zip';
   import type { Strings } from './i18n';
   import {
     DEFAULT_SETTINGS,
@@ -267,7 +271,6 @@ const heicHref = localePath(locale, '/heic-to-jpg/');
   const root = $('[data-tool="id-watermark"]');
   const { locale, s } = readI18n<Strings['client']>(root);
   const prefKey = `id-watermark:${locale}`;
-  const heicHref = root.dataset.heicHref ?? '/heic-to-jpg/';
 
   const drop = $('#iw-drop', root);
   const fileInput = $<HTMLInputElement>('#iw-file', root);
@@ -305,6 +308,8 @@ const heicHref = localePath(locale, '/heic-to-jpg/');
   const maxSide = $<HTMLSelectElement>('#iw-max', root);
   const quality = $<HTMLInputElement>('#iw-quality', root);
   const qualityField = $('#iw-quality-field', root);
+  const pngLevelField = $('#iw-png-level-field', root);
+  const pngLevel = $<HTMLInputElement>('#iw-png-level', root);
   const downloadBtn = $<HTMLButtonElement>('#iw-download', root);
   const zipBtn = $<HTMLButtonElement>('#iw-zip', root);
   const allBtn = $<HTMLButtonElement>('#iw-all', root);
@@ -340,6 +345,7 @@ const heicHref = localePath(locale, '/heic-to-jpg/');
       outline: outline.checked,
       format: checkedValue(formatRadios),
       quality: Number(quality.value),
+      pngLevel: Number(pngLevel.value),
       maxSide: Number(maxSide.value),
     });
   }
@@ -363,6 +369,7 @@ const heicHref = localePath(locale, '/heic-to-jpg/');
     outline.checked = st.outline;
     setRadios(formatRadios, st.format);
     quality.value = String(st.quality);
+    pngLevel.value = String(st.pngLevel);
     maxSide.value = String(st.maxSide);
     syncControls();
   }
@@ -382,6 +389,10 @@ const heicHref = localePath(locale, '/heic-to-jpg/');
     customField.hidden = !isCustom;
     dateInput.disabled = !st.dateOn;
     qualityField.hidden = st.format === 'png';
+    pngLevelField.hidden = st.format !== 'png';
+    quality.max = st.format === 'avif' ? '99' : '100';
+    if (st.format === 'avif' && Number(quality.value) > 99) quality.value = '99';
+    $('#iw-png-level-out', root).textContent = pngLevel.value;
     $('#iw-size-out', root).textContent = `${formatNumber(st.size, 1, locale)}%`;
     $('#iw-angle-out', root).textContent = `${formatInteger(st.angle, locale)}°`;
     $('#iw-spacing-out', root).textContent = `${formatNumber(st.spacing, 1, locale)}×`;
@@ -389,8 +400,8 @@ const heicHref = localePath(locale, '/heic-to-jpg/');
     $('#iw-quality-out', root).textContent = formatInteger(st.quality, locale);
   }
 
-  const persist = debounce(() => savePref(prefKey, readSettings()), 300);
-  window.addEventListener('pagehide', () => savePref(prefKey, readSettings()));
+  // Save on user changes, but do not re-create site data when the tab closes.
+  const persist = () => savePref(prefKey, readSettings());
 
   function onSettingsChange() {
     syncControls();
@@ -723,12 +734,7 @@ const heicHref = localePath(locale, '/heic-to-jpg/');
   }
 
   function heicLine(name: string) {
-    const p = document.createElement('p');
-    const a = document.createElement('a');
-    a.href = heicHref;
-    a.textContent = s.heicLink;
-    p.append(t(s.heicBefore, { name }), a, s.heicAfter);
-    return p;
+    return errorLine(`「${name}」無法在此瀏覽器解碼。請先在裝置上轉成 JPG，再加入這張照片。`);
   }
 
   function showErrors(lines: HTMLElement[]) {
@@ -911,7 +917,9 @@ const heicHref = localePath(locale, '/heic-to-jpg/');
       const ctx = out.getContext('2d');
       if (!ctx) throw new Error('canvas');
       paint(ctx, img.source, fit.width, fit.height, item.masks, fit.width / item.width, lines, st);
-      const blob = await toBlob(out, outputMime(st.format), encoderQuality(st.format, st.quality));
+      const blob = st.format === 'jpeg'
+        ? await toBlob(out, outputMime(st.format), encoderQuality(st.format, st.quality))
+        : await encodeAdvanced(out, st.format, st.quality, st.pngLevel);
       return { blob, name: outputFilename(item.name, st.format), width: fit.width, height: fit.height };
     } finally {
       img.close();
@@ -952,9 +960,9 @@ const heicHref = localePath(locale, '/heic-to-jpg/');
         results.length === 1
           ? t(s.done, { name: results[0].name, width: results[0].width, height: results[0].height, size: formatBytes(total, locale) })
           : t(s.doneMany, { n: results.length, size: formatBytes(total, locale) });
-    } catch {
+    } catch (error) {
       resultEl.hidden = true;
-      exportError.textContent = s.exportError;
+      exportError.textContent = `${s.exportError} ${error instanceof Error ? error.message : String(error)}`;
       exportError.hidden = false;
     } finally {
       setBusy(false);
@@ -1031,7 +1039,7 @@ const heicHref = localePath(locale, '/heic-to-jpg/');
     }),
   );
   for (const el of [org, purpose, custom, dateInput, size, angle, spacing, opacity]) el.addEventListener('input', onSettingsChange);
-  for (const el of [dateOn, outline, maxSide]) el.addEventListener('change', onSettingsChange);
+  for (const el of [dateOn, outline, maxSide, pngLevel]) el.addEventListener('change', onSettingsChange);
   for (const r of [...layoutRadios, ...formatRadios]) r.addEventListener('change', onSettingsChange);
   colorRadios.forEach((r) =>
     r.addEventListener('change', () => {
