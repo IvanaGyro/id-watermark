@@ -26,6 +26,8 @@ jobs:
       - run: npm run build
       - run: npx playwright install --with-deps chromium
       - run: node scripts/smoke.mjs
+        env:
+          SMOKE_FORMATS: jpeg,png,avif
       - uses: actions/upload-pages-artifact@v4
         with:
           path: ./dist
