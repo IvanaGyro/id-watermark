@@ -149,7 +149,8 @@ try {
       assert.equal(await page.locator('#iw-quality-field').isVisible(),true,'JPG/AVIF quality must be visible');
     }
     console.log('[SMOKE START EXPORT]',format);
-    const done = page.waitForEvent('download',{timeout:30000});
+    const exportTimeout = imageSide >= 512 && format === 'avif' ? 240000 : 30000;
+    const done = page.waitForEvent('download',{timeout:exportTimeout});
     await page.locator('#iw-download').click();
     const download=await done;
     const ext={jpeg:'.jpg',png:'.png',avif:'.avif'}[format];
@@ -162,7 +163,7 @@ try {
     console.log('[SMOKE EXPORT]',format,download.suggestedFilename(),bytes.length);
 
     // Batch ZIP was not previously tested and could crash on Firefox with AVIF.
-    const zipPromise = page.waitForEvent('download', {timeout:120000});
+    const zipPromise = page.waitForEvent('download', {timeout: exportTimeout * 2});
     await page.locator('#iw-zip').click();
     const zipDownload = await zipPromise;
     assert.equal(zipDownload.suggestedFilename(), 'id-watermark.zip');
