@@ -85,6 +85,7 @@ try {
     ['#iw-opacity', '#iw-opacity-out', 67, '67%'],
     ['#iw-quality', '#iw-quality-out', 71, '71'],
     ['#iw-png-level', '#iw-png-level-out', 5, '5'],
+    ['#iw-avif-level', '#iw-avif-level-out', 8, '8'],
   ];
   for (const [input, output, value, expected] of labels) {
     await setRange(page, input, value);
@@ -110,6 +111,9 @@ try {
   assert.equal(await page.locator('#iw-org').inputValue(), 'Test Bank', 'Saved form values must survive reload');
   assert.equal(await page.locator('#iw-quality').inputValue(), '72', 'Saved JPG quality must survive reload');
   assert.equal(await page.locator('#iw-png-level').inputValue(), '5', 'Saved PNG compression must survive reload');
+  assert.equal(await page.locator('#iw-avif-level').inputValue(), '8', 'Saved AVIF compression must survive reload');
+  // Reset to level 6 (libaom speed 4) for the practical high-resolution stress tests.
+  await setRange(page, '#iw-avif-level', 6);
   const dataURL = await page.evaluate(() => {
     const c = document.createElement('canvas');
     const side = Number(new URL(location.href).searchParams.get('size') ?? '40');
@@ -144,9 +148,12 @@ try {
     await page.locator(`input[name="iw-format"][value="${format}"]`).check({force:true});
     if(format==='png') {
       assert.equal(await page.locator('#iw-png-level-field').isVisible(),true,'PNG must show lossless level');
+      assert.equal(await page.locator('#iw-avif-level-field').isVisible(),false,'PNG must hide AVIF compression level');
       assert.equal(await page.locator('#iw-quality-field').isVisible(),false,'PNG must hide lossy quality');
     } else {
       assert.equal(await page.locator('#iw-quality-field').isVisible(),true,'JPG/AVIF quality must be visible');
+      assert.equal(await page.locator('#iw-avif-level-field').isVisible(),format==='avif','AVIF alone must show compression level');
+      assert.equal(await page.locator('#iw-png-level-field').isVisible(),false,'Non-PNG formats must hide PNG level');
     }
     console.log('[SMOKE START EXPORT]',format);
     const exportTimeout = imageSide >= 512 && format === 'avif' ? 240000 : 30000;
@@ -175,6 +182,56 @@ try {
       if(format==='avif') assert(entry.contents.toString('latin1',4,12).includes('ftyp'), 'AVIF inside ZIP has wrong magic');
     }
     console.log('[SMOKE ZIP]',format,zipBytes.length,zipEntries.map(x=>x.filename));
+  }
+  // Confirm quality=100 is not merely a quantizer label: its AVIF should decode to
+  // exactly the same pixel values as our lossless PNG of the identical rendered frame.
+  // Keep this on small fixture sizes, so high-effort lossless encoding stays CI-friendly.
+  if (formats.includes('avif') && imageSide < 512) {
+    await page.locator('input[name="iw-format"][value="png"]').check({force:true});
+    const pngDone = page.waitForEvent('download', {timeout:30000});
+    await page.locator('#iw-download').click();
+    const pngPixels = await readDownload(await pngDone);
+
+    await page.locator('input[name="iw-format"][value="avif"]').check({force:true});
+    await setRange(page, '#iw-quality', 100);
+    assert.equal(await page.locator('#iw-quality').inputValue(), '100','AVIF quality slider must accept 100');
+    assert.equal((await page.locator('#iw-quality-out').textContent())?.trim(),'100（無損）','AVIF 100 should be labeled lossless');
+    const avifDone = page.waitForEvent('download', {timeout:60000});
+    await page.locator('#iw-download').click();
+    const avifLossless = await readDownload(await avifDone);
+
+    const equality = await page.evaluate(async ({png, avif}) => {
+      async function rgba(bytes, mime) {
+        const bmp = await createImageBitmap(new Blob([new Uint8Array(bytes)], {type:mime}));
+        const canvas = document.createElement('canvas');
+        canvas.width = bmp.width; canvas.height = bmp.height;
+        const ctx = canvas.getContext('2d', {willReadFrequently:true});
+        ctx.drawImage(bmp,0,0);bmp.close();
+        return {width:canvas.width,height:canvas.height,pixels:ctx.getImageData(0,0,canvas.width,canvas.height).data};
+      }
+      const a = await rgba(png,'image/png');
+      const b = await rgba(avif,'image/avif');
+      if(a.width !== b.width || a.height !== b.height) return {identical:false,dims:[a.width,a.height,b.width,b.height]};
+      let mismatches=0, maxDiff=0;
+      for(let i=0;i<a.pixels.length;i++) {
+        const delta=Math.abs(a.pixels[i]-b.pixels[i]);
+        if(delta>0)mismatches++;
+        if(delta>maxDiff)maxDiff=delta;
+      }
+      return {identical:mismatches===0,mismatches,maxDiff,width:a.width,height:a.height};
+    }, {png:Array.from(pngPixels),avif:Array.from(avifLossless)});
+    console.log('[SMOKE AVIF LOSSLESS PIXELS]', equality, 'file size', avifLossless.length);
+    assert(equality.identical,'AVIF quality 100 must round-trip the rendered image pixel-for-pixel (compare PNG reference)');
+
+    // Verify AVIF quality 100 works in the original ZIP pipeline as well.
+    const zip100 = page.waitForEvent('download',{timeout:120000});
+    await page.locator('#iw-zip').click();
+    const losslessEntries = inspectZip(await readDownload(await zip100));
+    assert.equal(losslessEntries.length,2,'AVIF 100 ZIP should contain two files');
+    assert(losslessEntries.every(e=>e.filename.endsWith('.avif')),'AVIF 100 ZIP should retain format');
+    console.log('[SMOKE AVIF 100 ZIP]',losslessEntries.map(e=>e.filename));
+    await page.locator('input[name="iw-format"][value="jpeg"]').check({force:true});
+    assert.equal((await page.locator('#iw-quality-out').textContent())?.trim(),'100','JPG 100 must not be labeled lossless');
   }
   // Test the third upstream delivery option (individual files), no ZIP packaging.
   await page.locator('input[name="iw-format"][value="jpeg"]').check({force:true});
