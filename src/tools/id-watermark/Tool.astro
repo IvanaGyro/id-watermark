@@ -203,7 +203,7 @@ const L = STYLE_LIMITS;
 </div>
 
 <script>
-  import { $, $$, downloadBlob, loadPref, savePref } from '../../lib/client';
+  import { $, $, debounce, downloadBlob, loadPref, savePref } from '../../lib/client';
   import { encodeAdvanced } from '../../lib/image-encode';
   import { isHeic, prepareImage } from '../../lib/heic';
   import { readI18n } from '../../i18n/client';
