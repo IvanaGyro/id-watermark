@@ -24,6 +24,8 @@ jobs:
       - run: npm install --no-audit --no-fund
       - run: npm test
       - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - run: node scripts/smoke.mjs
       - uses: actions/upload-pages-artifact@v4
         with:
           path: ./dist
