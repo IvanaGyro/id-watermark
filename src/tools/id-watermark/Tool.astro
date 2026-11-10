@@ -204,11 +204,11 @@ const L = STYLE_LIMITS;
 
 <script>
   import { $, $$, debounce, downloadBlob, loadPref, savePref } from '../../lib/client';
-  import { encodeAdvanced } from '../../lib/image-encode';
+  import { ImageEncoderSession } from '../../lib/image-encode';
   import { isHeic, prepareImage } from '../../lib/heic';
   import { readI18n } from '../../i18n/client';
   import { formatBytes, formatInteger, formatNumber, t } from '../../i18n/format';
-  import { createZip } from '../../lib/zip';
+  import { createZipBlob } from '../../lib/zip';
   import type { Strings } from './i18n';
   import {
     DEFAULT_SETTINGS,
@@ -238,7 +238,6 @@ const L = STYLE_LIMITS;
     tileLayout,
     toImagePoint,
     todayIso,
-    uniqueNames,
     type Mask,
     type MaskMode,
     type Point,
@@ -397,7 +396,7 @@ const L = STYLE_LIMITS;
     $('#iw-angle-out', root).textContent = `${formatInteger(st.angle, locale)}°`;
     $('#iw-spacing-out', root).textContent = `${formatNumber(st.spacing, 1, locale)}×`;
     $('#iw-opacity-out', root).textContent = `${formatInteger(st.opacity, locale)}%`;
-    $('#iw-quality-out', root).textContent = formatInteger(st.quality, locale);
+    $('#iw-quality-out', root).textContent = formatInteger(Number(quality.value), locale);
   }
 
   // Save on user changes, but do not re-create site data when the tab closes.
@@ -907,7 +906,7 @@ const L = STYLE_LIMITS;
     return new Promise((resolve, reject) => c.toBlob((b) => (b ? resolve(b) : reject(new Error('encode'))), type, q));
   }
 
-  async function exportItem(item: Item, st: Settings, lines: string[]) {
+  async function exportItem(item: Item, st: Settings, lines: string[], encoder: ImageEncoderSession | null) {
     const img = await decode(item.source);
     const out = document.createElement('canvas');
     try {
@@ -919,7 +918,7 @@ const L = STYLE_LIMITS;
       paint(ctx, img.source, fit.width, fit.height, item.masks, fit.width / item.width, lines, st);
       const blob = st.format === 'jpeg'
         ? await toBlob(out, outputMime(st.format), encoderQuality(st.format, st.quality))
-        : await encodeAdvanced(out, st.format, st.quality, st.pngLevel);
+        : await encoder!.encode(out, st.format, st.quality, st.pngLevel);
       return { blob, name: outputFilename(item.name, st.format), width: fit.width, height: fit.height };
     } finally {
       img.close();
@@ -948,12 +947,19 @@ const L = STYLE_LIMITS;
       return;
     }
     setBusy(true, s.working);
+    // Reuse one codec worker across a batch instead of starting a new libaom WASM
+    // instance for every photo. Release its WASM memory BEFORE assembling the ZIP.
+    const encoder = st.format === 'jpeg' ? null : new ImageEncoderSession();
     try {
       const results: Awaited<ReturnType<typeof exportItem>>[] = [];
       for (const [i, item] of targets.entries()) {
-        if (targets.length > 1) resultEl.textContent = t(s.progress, { i: i + 1, n: targets.length });
-        results.push(await exportItem(item, st, lines));
+        if (targets.length > 1) {
+          resultEl.textContent = t(s.progress, { i: i + 1, n: targets.length });
+          await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+        }
+        results.push(await exportItem(item, st, lines, encoder));
       }
+      encoder?.close();
       await deliver(results);
       const total = results.reduce((sum, r) => sum + r.blob.size, 0);
       resultEl.textContent =
@@ -965,6 +971,7 @@ const L = STYLE_LIMITS;
       exportError.textContent = `${s.exportError} ${error instanceof Error ? error.message : String(error)}`;
       exportError.hidden = false;
     } finally {
+      encoder?.close();
       setBusy(false);
     }
   }
@@ -975,9 +982,10 @@ const L = STYLE_LIMITS;
   zipBtn.addEventListener('click', () =>
     void run(items.slice(), async (results) => {
       resultEl.textContent = s.zipping;
-      const names = uniqueNames(results.map((r) => r.name));
-      const entries = await Promise.all(results.map(async (r, i) => ({ name: names[i], data: new Uint8Array(await r.blob.arrayBuffer()) })));
-      downloadBlob(new Blob([createZip(entries)], { type: 'application/zip' }), 'id-watermark.zip');
+      // Assemble a ZIP from Blob slices; never materialize every photo plus a
+      // second complete archive buffer in the main browser thread.
+      const archive = await createZipBlob(results.map((r) => ({ name: r.name, blob: r.blob })));
+      downloadBlob(archive, 'id-watermark.zip');
     }),
   );
   allBtn.addEventListener('click', () =>
@@ -1039,7 +1047,15 @@ const L = STYLE_LIMITS;
     }),
   );
   for (const el of [org, purpose, custom, dateInput, size, angle, spacing, opacity]) el.addEventListener('input', onSettingsChange);
-  for (const el of [dateOn, outline, maxSide, pngLevel]) el.addEventListener('change', onSettingsChange);
+  for (const el of [quality, pngLevel]) {
+    el.addEventListener('input', () => {
+      // Export-only settings should update their displayed value while the thumb is moving.
+      // No need to rerender the canvas preview, but persist the selection.
+      syncControls();
+      persist();
+    });
+  }
+  for (const el of [dateOn, outline, maxSide]) el.addEventListener('change', onSettingsChange);
   for (const r of [...layoutRadios, ...formatRadios]) r.addEventListener('change', onSettingsChange);
   colorRadios.forEach((r) =>
     r.addEventListener('change', () => {

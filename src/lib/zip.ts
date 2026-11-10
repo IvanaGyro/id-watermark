@@ -115,3 +115,95 @@ export function createZip(entries: ZipEntry[], now: Date = new Date()): Uint8Arr
   view.setUint32(p + 16, centralStart, true);
   return out;
 }
+
+
+/** Memory-conscious ZIP builder for large exported photos (STORE, without re-compression).
+ * CRC32 is read in small chunks; the resulting Blob is composed of lightweight headers
+ * and each existing encoded Blob, avoiding the combined Uint8Array allocation of createZip.
+ * ZIP64 is intentionally unsupported: refuse oversized output instead of producing corrupt ZIPs.
+ */
+export async function createZipBlob(
+  entries: { name: string; blob: Blob }[],
+  now: Date = new Date(),
+): Promise<Blob> {
+  if (entries.length > 0xffff) throw new Error('Too many ZIP entries (ZIP64 not supported)');
+  const encoder = new TextEncoder();
+  const { date, time } = dosDateTime(now);
+  const names = uniqueNames(entries.map((item) => item.name)).map((name) => encoder.encode(name));
+  const localParts: BlobPart[] = [];
+  const centralParts: BlobPart[] = [];
+  let offset = 0;
+  let centralSize = 0;
+  const max32 = 0xffffffff;
+
+  for (let i = 0; i < entries.length; i++) {
+    const { blob } = entries[i];
+    const name = names[i];
+    if (blob.size > max32 || offset + blob.size + 30 + name.length > max32) {
+      throw new Error('ZIP exceeds 4 GiB; use individual downloads instead');
+    }
+    if (name.length > 0xffff) throw new Error('ZIP filename is too long');
+
+    let crc = 0xffffffff;
+    const crcTable = table();
+    const reader = blob.stream().getReader();
+    try {
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        if (value) {
+          for (const byte of value) crc = crcTable[(crc ^ byte) & 0xff] ^ (crc >>> 8);
+        }
+      }
+    } finally {
+      reader.releaseLock();
+    }
+    crc = (crc ^ 0xffffffff) >>> 0;
+
+    const local = new Uint8Array(30 + name.length);
+    let v = new DataView(local.buffer);
+    v.setUint32(0, 0x04034b50, true);
+    v.setUint16(4, 20, true);
+    v.setUint16(6, 0x0800, true);
+    v.setUint16(8, 0, true);
+    v.setUint16(10, time, true);
+    v.setUint16(12, date, true);
+    v.setUint32(14, crc, true);
+    v.setUint32(18, blob.size, true);
+    v.setUint32(22, blob.size, true);
+    v.setUint16(26, name.length, true);
+    local.set(name, 30);
+    localParts.push(local, blob);
+
+    const central = new Uint8Array(46 + name.length);
+    v = new DataView(central.buffer);
+    v.setUint32(0, 0x02014b50, true);
+    v.setUint16(4, 20, true);
+    v.setUint16(6, 20, true);
+    v.setUint16(8, 0x0800, true);
+    v.setUint16(10, 0, true);
+    v.setUint16(12, time, true);
+    v.setUint16(14, date, true);
+    v.setUint32(16, crc, true);
+    v.setUint32(20, blob.size, true);
+    v.setUint32(24, blob.size, true);
+    v.setUint16(28, name.length, true);
+    v.setUint32(42, offset, true);
+    central.set(name, 46);
+    centralParts.push(central);
+    offset += local.length + blob.size;
+    centralSize += central.length;
+  }
+
+  if (centralSize > max32 || offset + centralSize > max32) {
+    throw new Error('ZIP exceeds 4 GiB; use individual downloads instead');
+  }
+  const end = new Uint8Array(22);
+  const v = new DataView(end.buffer);
+  v.setUint32(0, 0x06054b50, true);
+  v.setUint16(8, entries.length, true);
+  v.setUint16(10, entries.length, true);
+  v.setUint32(12, centralSize, true);
+  v.setUint32(16, offset, true);
+  return new Blob([...localParts, ...centralParts, end], { type: 'application/zip' });
+}
