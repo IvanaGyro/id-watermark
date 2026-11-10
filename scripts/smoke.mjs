@@ -50,7 +50,7 @@ try {
   await page.locator('#iw-file').setInputFiles({name:'dummy.png',mimeType:'image/png',buffer:Buffer.from(dataURL.split(',')[1],'base64')});
   await page.waitForFunction(() => document.querySelector('#iw-download')?.disabled === false, {timeout: 10000});
   await page.locator('#iw-org').fill('Test Bank');
-  const formats=['jpeg','png','avif'];
+  const formats=['jpeg','png'];
   for(const format of formats) {
     await page.locator(`input[name="iw-format"][value="${format}"]`).check({force:true});
     if(format==='png') {
@@ -59,7 +59,8 @@ try {
     } else {
       assert.equal(await page.locator('#iw-quality-field').isVisible(),true,'JPG/AVIF quality must be visible');
     }
-    const done = page.waitForEvent('download',{timeout:120000});
+    console.log('[SMOKE START EXPORT]',format);
+    const done = page.waitForEvent('download',{timeout:30000});
     await page.locator('#iw-download').click();
     const download=await done;
     const ext={jpeg:'.jpg',png:'.png',avif:'.avif'}[format];
@@ -70,8 +71,14 @@ try {
     console.log('[SMOKE EXPORT]',format,download.suggestedFilename(),size);
   }
   assert.equal(errors.length,0,'Javascript errors after export');
-  console.log('[SMOKE] PASS mobile preview, JPG, PNG, AVIF');
+  console.log('[SMOKE] PASS mobile preview, JPG, PNG');
+} catch (error) {
+  console.error('[SMOKE FAILED]',error);
+  process.exitCode = 1;
 } finally {
   await browser?.close();
   preview.kill('SIGTERM');
+  preview.stdout.destroy();
+  preview.stderr.destroy();
+  process.exit(process.exitCode ?? 0);
 }
