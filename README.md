@@ -5,7 +5,7 @@
 - 單一功能：證件浮水印、遮蔽、JPG/PNG/AVIF 輸出、HEIC 載入、批次 ZIP
 - 保留 localStorage 表單選項，但是不再於 pagehide 無條件重寫資料
 - PNG：OxiPNG Wasm 無損壓縮等級 1–6
-- AVIF：libavif/libaom Wasm 有損壓縮，品質 10–99、編碼速度 4（高壓縮效率與實際執行時間的平衡；速度 0 在 Firefox Wasm 中過於緩慢）
+- AVIF：品質 10–99 為有損，100 啟用真正無損（4:4:4／identity 色彩矩陣）；壓縮等級 0–10（0 快、10 高壓縮努力），預設 6 對應 libaom speed 4。
 - 不載入 Google Analytics、廣告，程式內無圖片上傳端點，網頁以 CSP 限制對外連線
 - 建議先以假照片測試；原始碼檢查不能取代實際網路監控
 

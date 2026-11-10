@@ -421,6 +421,8 @@ export interface Settings extends Style {
   format: OutputFormat;
   quality: number;
   pngLevel: number;
+  /** 0 = fast / lower compression; 10 = slow / higher compression (libaom speed = 10 - avifLevel). */
+  avifLevel: number;
   maxSide: number;
 }
 
@@ -452,6 +454,7 @@ export const DEFAULT_SETTINGS: Settings = {
   format: 'jpeg',
   quality: 85,
   pngLevel: 3,
+  avifLevel: 6,
   maxSide: 2400,
 };
 
@@ -486,6 +489,7 @@ export function normalizeSettings(raw: unknown, defaults: Settings = DEFAULT_SET
     format: pick(r.format, ['jpeg', 'png', 'avif'] as const, defaults.format),
     quality: Math.round(num(r.quality, defaults.quality, L.quality.min, L.quality.max)),
     pngLevel: Math.round(num(r.pngLevel, defaults.pngLevel, 1, 6)),
+    avifLevel: Math.round(num(r.avifLevel, defaults.avifLevel, 0, 10)),
     maxSide: pick<number>(Number(r.maxSide), MAX_SIDE_OPTIONS, defaults.maxSide),
   };
 }

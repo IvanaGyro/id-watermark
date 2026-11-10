@@ -393,3 +393,18 @@ describe('AVIF and PNG compression settings', () => {
     expect(normalizeSettings({ pngLevel: 0 }).pngLevel).toBe(1);
   });
 });
+
+describe('AVIF compression level and lossless quality', () => {
+  it('defaults to level 6, preserving the prior libaom speed of 4', () => {
+    expect(DEFAULT_SETTINGS.avifLevel).toBe(6);
+    expect(normalizeSettings({}).avifLevel).toBe(6);
+  });
+  it('clamps compression level to 0 through 10 and persists integer settings', () => {
+    expect(normalizeSettings({avifLevel: -4}).avifLevel).toBe(0);
+    expect(normalizeSettings({avifLevel: 14}).avifLevel).toBe(10);
+    expect(normalizeSettings({avifLevel: 3.5}).avifLevel).toBe(4);
+  });
+  it('retains AVIF quality 100, including previously persisted selections', () => {
+    expect(normalizeSettings({ format: 'avif', quality: 100 }).quality).toBe(100);
+  });
+});

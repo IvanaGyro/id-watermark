@@ -184,11 +184,16 @@ const L = STYLE_LIMITS;
           <input id="iw-quality" type="range" min={L.quality.min} max={L.quality.max} step={L.quality.step} value={d.quality} />
         </div>
         <div class="field" id="iw-png-level-field" hidden>
-          <label for="iw-png-level">PNG 無損壓縮等級 <output id="iw-png-level-out" for="iw-png-level"></output> / 6</label>
+          <label for="iw-png-level">壓縮等級 <output id="iw-png-level-out" for="iw-png-level"></output> / 6</label>
           <input id="iw-png-level" type="range" min="1" max="6" step="1" value={d.pngLevel} />
+          <div class="iw-range-ends" aria-hidden="true"><span>較快</span><span>較小檔案</span></div>
+        </div>
+        <div class="field" id="iw-avif-level-field" hidden>
+          <label for="iw-avif-level">壓縮等級 <output id="iw-avif-level-out" for="iw-avif-level"></output> / 10</label>
+          <input id="iw-avif-level" type="range" min="0" max="10" step="1" value={d.avifLevel} />
+          <div class="iw-range-ends" aria-hidden="true"><span>較快</span><span>較小檔案</span></div>
         </div>
       </div>
-      <p class="hint">{s.exportHint} PNG 使用無損壓縮，等級越高越慢；AVIF 使用 libaom 高壓縮有損編碼，處理高解析度照片可能很久。</p>
       <div class="row">
         <button class="btn primary" type="button" id="iw-download" disabled><Icon name="Download" size={18} />{s.download}</button>
         <button class="btn" type="button" id="iw-zip" hidden><Icon name="FileArchive" size={18} />{s.zip}</button>
@@ -309,6 +314,8 @@ const L = STYLE_LIMITS;
   const qualityField = $('#iw-quality-field', root);
   const pngLevelField = $('#iw-png-level-field', root);
   const pngLevel = $<HTMLInputElement>('#iw-png-level', root);
+  const avifLevelField = $('#iw-avif-level-field', root);
+  const avifLevel = $<HTMLInputElement>('#iw-avif-level', root);
   const downloadBtn = $<HTMLButtonElement>('#iw-download', root);
   const zipBtn = $<HTMLButtonElement>('#iw-zip', root);
   const allBtn = $<HTMLButtonElement>('#iw-all', root);
@@ -345,6 +352,7 @@ const L = STYLE_LIMITS;
       format: checkedValue(formatRadios),
       quality: Number(quality.value),
       pngLevel: Number(pngLevel.value),
+      avifLevel: Number(avifLevel.value),
       maxSide: Number(maxSide.value),
     });
   }
@@ -369,6 +377,7 @@ const L = STYLE_LIMITS;
     setRadios(formatRadios, st.format);
     quality.value = String(st.quality);
     pngLevel.value = String(st.pngLevel);
+    avifLevel.value = String(st.avifLevel);
     maxSide.value = String(st.maxSide);
     syncControls();
   }
@@ -389,14 +398,18 @@ const L = STYLE_LIMITS;
     dateInput.disabled = !st.dateOn;
     qualityField.hidden = st.format === 'png';
     pngLevelField.hidden = st.format !== 'png';
-    quality.max = st.format === 'avif' ? '99' : '100';
-    if (st.format === 'avif' && Number(quality.value) > 99) quality.value = '99';
+    avifLevelField.hidden = st.format !== 'avif';
+    quality.max = '100';
     $('#iw-png-level-out', root).textContent = pngLevel.value;
+    $('#iw-avif-level-out', root).textContent = avifLevel.value;
     $('#iw-size-out', root).textContent = `${formatNumber(st.size, 1, locale)}%`;
     $('#iw-angle-out', root).textContent = `${formatInteger(st.angle, locale)}°`;
     $('#iw-spacing-out', root).textContent = `${formatNumber(st.spacing, 1, locale)}×`;
     $('#iw-opacity-out', root).textContent = `${formatInteger(st.opacity, locale)}%`;
-    $('#iw-quality-out', root).textContent = formatInteger(Number(quality.value), locale);
+    $('#iw-quality-out', root).textContent =
+      st.format === 'avif' && Number(quality.value) === 100
+        ? '100（無損）'
+        : formatInteger(Number(quality.value), locale);
   }
 
   // Save on user changes, but do not re-create site data when the tab closes.
@@ -918,7 +931,7 @@ const L = STYLE_LIMITS;
       paint(ctx, img.source, fit.width, fit.height, item.masks, fit.width / item.width, lines, st);
       const blob = st.format === 'jpeg'
         ? await toBlob(out, outputMime(st.format), encoderQuality(st.format, st.quality))
-        : await encoder!.encode(out, st.format, st.quality, st.pngLevel);
+        : await encoder!.encode(out, st.format, st.quality, st.pngLevel, st.avifLevel);
       return { blob, name: outputFilename(item.name, st.format), width: fit.width, height: fit.height };
     } finally {
       img.close();
@@ -1047,7 +1060,7 @@ const L = STYLE_LIMITS;
     }),
   );
   for (const el of [org, purpose, custom, dateInput, size, angle, spacing, opacity]) el.addEventListener('input', onSettingsChange);
-  for (const el of [quality, pngLevel]) {
+  for (const el of [quality, pngLevel, avifLevel]) {
     el.addEventListener('input', () => {
       // Export-only settings should update their displayed value while the thumb is moving.
       // No need to rerender the canvas preview, but persist the selection.
@@ -1476,5 +1489,13 @@ const L = STYLE_LIMITS;
     .iw-export .row .btn {
       flex: 0 1 auto;
     }
+  }
+  .iw-range-ends {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    font-size: 12px;
+    line-height: 1.25;
+    color: var(--muted);
   }
 </style>

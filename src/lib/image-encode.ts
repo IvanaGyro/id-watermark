@@ -11,6 +11,7 @@ export class ImageEncoderSession {
     format: 'png' | 'avif',
     quality: number,
     pngLevel: number,
+    avifLevel: number,
   ): Promise<Blob> {
     if (this.closed) throw new Error('Image encoder session is closed');
     if (this.pending) throw new Error('Image encoder is already processing an image');
@@ -48,7 +49,7 @@ export class ImageEncoderSession {
     return new Promise<Blob>((resolve, reject) => {
       this.pending = { resolve, reject };
       try {
-        this.worker!.postMessage({ width, height, pixels, format, quality, pngLevel }, [pixels]);
+        this.worker!.postMessage({ width, height, pixels, format, quality, pngLevel, avifLevel }, [pixels]);
       } catch (error) {
         this.pending = null;
         reject(error instanceof Error ? error : new Error(String(error)));
