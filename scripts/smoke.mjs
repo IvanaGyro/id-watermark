@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
-import { chromium } from 'playwright';
+import { chromium, firefox } from 'playwright';
 
 const preview = spawn('npm', ['run', 'preview', '--', '--host', '127.0.0.1', '--port', '4321'], {
   stdio: ['ignore', 'pipe', 'pipe'],
@@ -18,7 +18,7 @@ try {
     try { const r = await fetch('http://127.0.0.1:4321/id-watermark/'); if(r.ok) { ready = true; break; } } catch {}
   }
   assert(ready, 'Astro preview did not become available');
-  browser = await chromium.launch({ headless: true });
+  browser = await (process.env.SMOKE_BROWSER === 'firefox' ? firefox : chromium).launch({ headless: true });
   const page = await browser.newPage({ viewport: { width: 393, height: 852 }, deviceScaleFactor: 2, acceptDownloads: true });
   const errors = [];
   page.on('pageerror', e => { errors.push(e.message); console.error('[PAGE ERROR]', e.stack ?? e); });
@@ -50,7 +50,7 @@ try {
   await page.locator('#iw-file').setInputFiles({name:'dummy.png',mimeType:'image/png',buffer:Buffer.from(dataURL.split(',')[1],'base64')});
   await page.waitForFunction(() => document.querySelector('#iw-download')?.disabled === false, {timeout: 10000});
   await page.locator('#iw-org').fill('Test Bank');
-  const formats=['jpeg','png'];
+  const formats=(process.env.SMOKE_FORMATS ?? 'jpeg,png').split(',');
   for(const format of formats) {
     await page.locator(`input[name="iw-format"][value="${format}"]`).check({force:true});
     if(format==='png') {
@@ -71,7 +71,7 @@ try {
     console.log('[SMOKE EXPORT]',format,download.suggestedFilename(),size);
   }
   assert.equal(errors.length,0,'Javascript errors after export');
-  console.log('[SMOKE] PASS mobile preview, JPG, PNG');
+  console.log('[SMOKE] PASS mobile preview and exports:', formats.join(', '));
 } catch (error) {
   console.error('[SMOKE FAILED]',error);
   process.exitCode = 1;

@@ -1,0 +1,31 @@
+name: Verify additional browser and AVIF exports
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  smoke:
+    name: ${{ matrix.browser }} / ${{ matrix.formats }}
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - browser: chromium
+            formats: avif
+          - browser: firefox
+            formats: jpeg,png,avif
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm install --no-audit --no-fund
+      - run: npm run build
+      - run: npx playwright install --with-deps ${{ matrix.browser }}
+      - run: node scripts/smoke.mjs
+        env:
+          SMOKE_BROWSER: ${{ matrix.browser }}
+          SMOKE_FORMATS: ${{ matrix.formats }}
