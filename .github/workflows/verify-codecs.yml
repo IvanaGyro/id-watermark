@@ -9,6 +9,7 @@ jobs:
   smoke:
     name: ${{ matrix.browser }} / ${{ matrix.formats }}
     runs-on: ubuntu-24.04
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
@@ -17,6 +18,9 @@ jobs:
             formats: avif
           - browser: firefox
             formats: jpeg,png,avif
+          - browser: firefox
+            formats: avif
+            image_side: 1024
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v4
@@ -29,3 +33,4 @@ jobs:
         env:
           SMOKE_BROWSER: ${{ matrix.browser }}
           SMOKE_FORMATS: ${{ matrix.formats }}
+          SMOKE_IMAGE_SIDE: ${{ matrix.image_side || 40 }}

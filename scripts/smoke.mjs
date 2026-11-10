@@ -59,7 +59,9 @@ try {
   page.on('console', msg => { if (msg.type()==='error') console.error('[CONSOLE]',msg.text()); });
   page.on('requestfailed', req => console.error('[FAILED REQUEST]',req.url(),req.failure()?.errorText));
   page.on('response', resp => { if (resp.status() >= 400) console.error('[HTTP]',resp.status(),resp.url()); });
-  await page.goto('http://127.0.0.1:4321/id-watermark/', {waitUntil:'networkidle'});
+  const imageSide = Number(process.env.SMOKE_IMAGE_SIDE ?? 40);
+  assert(Number.isInteger(imageSide) && imageSide >= 20 && imageSide <= 3000);
+  await page.goto(`http://127.0.0.1:4321/id-watermark/?size=${imageSide}`, {waitUntil:'networkidle'});
   await page.waitForTimeout(1500);
   const status = await page.evaluate(() => {
     const canvas = document.querySelector('#iw-canvas');
