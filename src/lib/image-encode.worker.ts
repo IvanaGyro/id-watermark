@@ -18,7 +18,10 @@ self.addEventListener('message', async (event: MessageEvent<Request>) => {
       ? await optimisePng(image, { level: pngLevel, interlace: false, optimiseAlpha: false })
       : await encodeAvif(image, {
           quality: Math.min(99, Math.max(1, Math.round(quality))),
-          speed: 0,
+          // libaom is kept as the high-efficiency encoder. Speed 0 is impractically
+          // slow in browser Wasm (over 4 minutes for a 1024px image in Firefox).
+          // Speed 4 balances compression efficiency and usable runtime.
+          speed: 4,
           subsample: 1,
           lossless: false,
           bitDepth: 8,
